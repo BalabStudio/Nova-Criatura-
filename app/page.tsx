@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import Link from "next/link";
 import { Calendar } from "@/components/calendar";
 import members from "@/data/members.json";
@@ -72,7 +72,7 @@ export default function Page() {
           id="member-select"
           className="cardSub"
           value={selectedMember}
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
             setSelectedMember(e.target.value);
             setAssignment(null);
             setErrorMsg(null);
@@ -105,7 +105,7 @@ export default function Page() {
               id="pwd"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               className="cardSub"
             />
           </>

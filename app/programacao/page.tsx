@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import Link from "next/link";
 import { Calendar } from "@/components/calendar";
 import { apiService, ScheduleData } from "@/services/api.service";
