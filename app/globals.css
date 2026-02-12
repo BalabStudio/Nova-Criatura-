@@ -1,0 +1,307 @@
+:root {
+  --bg: #ffffff;
+  --fg: #0f1419;
+  --muted: #e5e5e6;
+  --border: #e1eaef;
+  --primary: #0c228f;
+  --primary-fg: #ffffff;
+  --card: #ffffff;
+  --shadow: 0px 10px 15px -3px rgba(15, 20, 25, 0.08), 0px 4px 6px -4px rgba(15, 20, 25, 0.04);
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a { color: inherit; text-decoration: none; }
+
+.container {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 18px 14px 28px;
+}
+
+.header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: rgba(15, 20, 25, 0.72);
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-radius: 999px;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: var(--shadow);
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.card {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0px 1px 3px rgba(15, 20, 25, 0.06);
+}
+
+.cardMedia {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: contain;
+  display: block;
+  background: var(--muted);
+}
+
+.cardBody {
+  padding: 12px 12px 14px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.cardSub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(15, 20, 25, 0.72);
+}
+
+.grid {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pill {
+  display: inline-block;
+  background: var(--muted);
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(15, 20, 25, 0.6);
+}
+
+.cardDesc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: rgba(15, 20, 25, 0.6);
+  line-height: 1.5;
+}
+
+.cardImage {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0px 1px 3px rgba(15, 20, 25, 0.06);
+}
+
+.cardImageContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  background: var(--muted);
+}
+
+.cardMediaImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cardImagePlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--muted);
+  color: rgba(15, 20, 25, 0.6);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.timeBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(12, 34, 143, 0.9);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0px 2px 8px rgba(15, 20, 25, 0.12);
+}
+
+select, input[type="password"] {
+  appearance: none;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--fg);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0px 1px 2px rgba(15, 20, 25, 0.04);
+  transition: border-color 120ms ease;
+}
+
+select:focus, input[type="password"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0px 0px 0px 2px rgba(12, 34, 143, 0.1);
+}
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%230f1419' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.calendar {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: 0px 1px 3px rgba(15, 20, 25, 0.06);
+  padding: 12px;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.calendarTitle {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.calendarNav {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 120ms ease;
+}
+
+.calendarNav:hover {
+  background-color: var(--muted);
+}
+
+.calendarNav:active {
+  transform: scale(0.95);
+}
+
+.calendarWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.calendarWeekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(15, 20, 25, 0.6);
+  padding: 6px 0;
+}
+
+.calendarDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendarDay {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--fg);
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.calendarDay.empty {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.calendarDay.active:hover {
+  background-color: var(--muted);
+}
+
+.calendarDay.selected {
+  background-color: var(--primary);
+  color: var(--primary-fg);
+  border-color: var(--primary);
+  font-weight: 700;
+}
+
+.calendarDay.selected:hover {
+  background-color: rgba(12, 34, 143, 0.85);
+}

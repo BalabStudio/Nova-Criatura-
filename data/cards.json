@@ -1,0 +1,49 @@
+[
+  {
+    "id": "lanche",
+    "title": "Lanche",
+    "subtitle": "Promova a comunhão",
+    "image": "/cards/lanche.jpg",
+    "description": "Dica: Promova a comunhão durante o lanche. Esse é o momento de fortalecer os laços e criar um ambiente acolhedor. Um lanche simples, mas bem preparado, faz toda a diferença. Encoraje as pessoas a interagirem e se conhecerem melhor. Lembre-se, o lanche também é uma oportunidade de servir e abençoar uns aos outros."
+  },
+  {
+    "id": "quebra-gelo",
+    "title": "Quebra Gelo",
+    "subtitle": "Dinâmica interativa",
+    "image": "/cards/quebra-gelo.jpg",
+    "time": "5 min",
+    "description": "Dica: Escolha dinâmicas que promovam a interação e deixem o ambiente leve e amigável. A descontração deve preparar os corações para receber a Palavra e para conhecerem uns aos outros. Busque atividades que sejam divertidas e que, ao final, deixem uma lição ou reflexão para os participantes. A simplicidade muitas vezes é o segredo para uma boa interação."
+  },
+  {
+    "id": "oracao",
+    "title": "Oração",
+    "subtitle": "Comece com gratidão",
+    "image": "/cards/oracao.jpg",
+    "time": "5 min",
+    "description": "Dica: No início da célula, comece com uma oração de gratidão, agradecendo a Deus por estarmos juntos. No final, ore pelos pedidos na caixinha de oração, pelos membros, pela liderança e pela célula em geral. Lembre-se de incluir também uma bênção sobre o lanche e o encerramento. Mantenha a oração sincera e envolvente, criando um ambiente de fé e unidade."
+  },
+  {
+    "id": "oferta",
+    "title": "Oferta",
+    "subtitle": "Princípio da generosidade",
+    "image": "/cards/oferta.jpg",
+    "time": "5 min",
+    "description": "Dica: Ensine sobre o princípio da generosidade com base na Bíblia. Use um versículo para fundamentar a importância de ofertar e como isso reflete nosso coração generoso diante de Deus. Mostre que ofertar é uma oportunidade de participar do que Deus está fazendo na vida das pessoas e na igreja."
+  },
+  {
+    "id": "visao",
+    "title": "Visão",
+    "subtitle": "Reforce a visão do MDA",
+    "image": "/cards/visao.jpg",
+    "time": "5 min",
+    "description": "Dica: Use esse momento para reforçar a visão do MDA. Fale sobre a importância do discipulado, da célula, e do comprometimento com a igreja, sobre pastoreamento ou sobre algumas função da célula. Escolha um assunto por vez. Você pode Compartilhar um testemunho, uma experiênica ou um ensinamento que motive os membros a viverem a visão. Seja claro e inspire comprometimento."
+  },
+  {
+    "id": "louvor",
+    "title": "Louvor",
+    "subtitle": "Adoração envolvente",
+    "image": "/cards/louvor.jpg",
+    "time": "10 min",
+    "description": "Dica: Conduza o louvor com alegria e envolvimento. Escolha músicas simples que todos possam acompanhar facilmente. Se necessário, disponibilize as letras em papel ou em uma tela para facilitar a participação. Mantenha o momento dinâmico e inspire os participantes a se entregarem em adoração."
+  }
+]
