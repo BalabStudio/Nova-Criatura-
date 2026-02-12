@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getCards, pickRandomCard } from "@/lib/cards";
 import { assign, isAssigned, getAllowedCards, getUsedCardIdsForDate, getLastAssignmentForMember, getAssignments } from "@/lib/assignments";
