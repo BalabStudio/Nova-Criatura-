@@ -29,8 +29,8 @@ Facilitar a organização das reuniões de célula, garantindo uma distribuiçã
 npm install
 
 # Configurar variáveis de ambiente (opcional para local)
-# KV_REST_API_URL="..."
-# KV_REST_API_TOKEN="..."
+# NEXT_PUBLIC_SUPABASE_URL="..."
+# NEXT_PUBLIC_SUPABASE_ANON_KEY="..."
 # ADMIN_PASSWORD="..."
 
 # Rodar em desenvolvimento
@@ -79,7 +79,7 @@ A API é construída usando Next.js Route Handlers.
 | Função | Parâmetros | Retorno | Descrição |
 | :--- | :--- | :--- | :--- |
 | `getCards()` | - | `CardItem[]` | Retorna a lista de todas as funções disponíveis em `cards.json`. |
-| `assign(member, date, cardId)` | `string, string, string` | `Promise<Assignment>` | Salva uma nova atribuição no storage (Redis ou Local). |
+| `assign(member, date, cardId)` | `string, string, string` | `Promise<Assignment>` | Salva uma nova atribuição no Supabase. |
 | `getAssignments()` | - | `Promise<Assignment[]>` | Retorna todos os sorteios realizados. |
 | `isAssigned(member, date)` | `string, string` | `Promise<boolean>` | Verifica se um membro já tem função na data. |
 
@@ -92,7 +92,7 @@ A API é construída usando Next.js Route Handlers.
 - **Framework**: Next.js 15+ (App Router)
 - **Estilização**: CSS Vanilla (custom) + Tailwind CSS (base)
 - **Validação**: Zod
-- **Banco de Dados**: Upstash Redis (KV) com fallback para JSON local.
+- **Banco de Dados**: Supabase (PostgreSQL)
 
 ### Estrutura de Pastas
 ```text
@@ -105,23 +105,23 @@ nova-criatura-funcoes/
 │   ├── ui/               # Componentes de UI (Radix/Shadcn)
 │   └── calendar.tsx      # Componente de calendário customizado
 ├── data/                 # Arquivos de dados estáticos (JSON)
-│   ├── cards.json        # Definição das funções e imagens
-│   └── members.json      # Lista de membros da célula
 ├── lib/                  # Lógica de negócio e utilitários
-│   ├── assignments.ts    # Gerenciamento de sorteios e storage
-│   └── cards.ts          # Carregamento e sorteio de cards
-└── public/               # Ativos estáticos (Fotos dos cards reais)
-    └── cards/            # Imagens dos cartões físicos (.jpg)
+│   ├── assignments.ts    # Gerenciamento de sorteios (Supabase)
+│   ├── cards.ts          # Carregamento e sorteio de cards
+│   └── supabase.ts       # Cliente Supabase configurado
+├── services/             # Camada de comunicação com a API
+│   └── api.service.ts    # Centralização de chamadas fetch
+└── public/               # Ativos estáticos
 ```
 
 ### Componentes e Responsabilidades
-- **Assignments Module (`lib/assignments.ts`)**: Responsável por toda a persistência de dados. Implementa lógica híbrida que usa Redis em produção e arquivos JSON em desenvolvimento.
+- **Assignments Module (`lib/assignments.ts`)**: Responsável por toda a persistência de dados no Supabase.
 - **Cards Module (`lib/cards.ts`)**: Gerencia o catálogo de funções e a aleatoriedade do sorteio.
-- **Calendar Component**: Interface personalizada para seleção de datas, integrada ao estado da aplicação.
+- **API Service (`services/api.service.ts`)**: Abstração das chamadas HTTP para os Route Handlers.
 
 ### Fluxos de Dados
-1. **Sorteio**: Client envia `member` e `date` -> API valida -> Consulta histórico no Redis/Local -> Filtra cards disponíveis (regras de repetição/capacidade) -> Escolhe um -> Salva e retorna.
-2. **Consulta**: Client envia `date` -> API filtra `Assignments` -> Mapeia membros para papéis fixos -> Retorna objeto formatado para a UI da agenda.
+1. **Sorteio**: Client -> API Service -> Route Handler -> Supabase -> Retorno.
+2. **Consulta**: Client -> API Service -> Route Handler -> Supabase -> Mapeamento de papéis -> UI.
 
 ---
 
@@ -131,7 +131,7 @@ nova-criatura-funcoes/
 
 | Arquivo | Propósito | Dependências |
 | :--- | :--- | :--- |
-| `lib/assignments.ts` | Persistência e regras de negócio de atribuição. | `@upstash/redis`, `zod`, `fs`, `path` |
+| `lib/assignments.ts` | Persistência e regras de negócio de atribuição. | `@supabase/supabase-js`, `zod` |
 | `lib/cards.ts` | Carregamento e validação do catálogo de funções. | `zod`, `data/cards.json` |
 | `app/api/assign/route.ts` | Orquestração do sorteio via API. | `lib/assignments`, `lib/cards` |
 | `components/calendar.tsx` | UI Selector de datas. | `react` |

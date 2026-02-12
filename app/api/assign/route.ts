@@ -20,13 +20,19 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   }
-  const isoDate = new Date(date).toISOString().slice(0, 10);
-  if (Number.isNaN(Date.parse(isoDate))) {
-    return new NextResponse(JSON.stringify({ error: "Data inválida." }), {
+  // Garantir formato YYYY-MM-DD sem deslocamento de fuso horário
+  let isoDate = date;
+  if (date.includes("T")) {
+    isoDate = date.split("T")[0];
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return new NextResponse(JSON.stringify({ error: "Formato de data inválido. Use YYYY-MM-DD." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
+
   if (await isAssigned(member, isoDate)) {
     return new NextResponse(JSON.stringify({ error: "Esta pessoa já possui uma função para esta data." }), {
       status: 409,

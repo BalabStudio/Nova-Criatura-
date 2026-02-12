@@ -3,21 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Calendar } from "@/components/calendar";
-
-interface ScheduleData {
-  date: string;
-  weekday: string;
-  horario: string;
-  funcoes: {
-    oracao?: string;
-    louvor?: string;
-    dinamica?: string;
-    visao?: string;
-    facilitacao: string;
-    oferta?: string;
-    comunhao: string[];
-  };
-}
+import { apiService, ScheduleData } from "@/services/api.service";
 
 const EMOJI_MAP: Record<string, string> = {
   oracao: "🙏",
@@ -52,12 +38,7 @@ export default function ProgramacaoPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/schedule?date=${date}`);
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Falha ao carregar programação");
-      }
-      const data = await res.json();
+      const data = await apiService.getSchedule(date);
       setSchedule(data);
     } catch (err: any) {
       setErrorMsg(err.message);

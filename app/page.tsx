@@ -4,24 +4,13 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Calendar } from "@/components/calendar";
 import members from "@/data/members.json";
-
-type CardItem = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  image: string;
-  description?: string;
-  time?: string;
-};
+import { apiService, PickResponse } from "@/services/api.service";
 
 export default function Page() {
   const [selectedMember, setSelectedMember] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [assignment, setAssignment] = useState<{
-    assignment: { member: string; date: string; cardId: string };
-    card: CardItem;
-  } | null>(null);
+  const [assignment, setAssignment] = useState<PickResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
@@ -32,16 +21,7 @@ export default function Page() {
     setErrorMsg(null);
     setAssignment(null);
     try {
-      const res = await fetch("/api/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member: selectedMember, date: selectedDate }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || `Falha (HTTP ${res.status})`);
-      }
-      const data = await res.json();
+      const data = await apiService.pickFunction(selectedMember, selectedDate);
       setAssignment(data);
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -54,15 +34,7 @@ export default function Page() {
     setResetMsg(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.error || `Falha (HTTP ${res.status})`);
-      }
+      await apiService.resetAssignments(password);
       setAssignment(null);
       setSelectedDate("");
       setSelectedMember("");
