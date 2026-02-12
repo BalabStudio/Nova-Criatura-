@@ -24,6 +24,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files (uncommented to allow upload to private repo as per user request)
+# .env
 # .env*.local
 
 # vercel
