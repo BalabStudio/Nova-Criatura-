@@ -56,7 +56,7 @@ export default function Page() {
         <div style={{ flex: 1 }}>
           <h1 className="title">Programação mais TOP de uma Célula de Todos os Tempos 🔥</h1>
           <p className="subtitle">
-            Selecione o seu nome e a data da célula, depois clique em "Escolher" para receber sua função.
+            Selecione o seu nome e a data da célula, depois clique em &quot;Escolher&quot; para receber sua função.
           </p>
         </div>
         <Link href="/programacao" style={{ textDecoration: "none" }}>
