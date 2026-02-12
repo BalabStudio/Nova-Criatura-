@@ -6,7 +6,9 @@ export const metadata: Metadata = {
   title: 'Nova Criatura',
   description: 'Sorteie uma função por clique.',
   icons: {
-    icon: '/icon.jpg',
+    icon: '/favicon.ico', // favicon padrão
+    shortcut: '/favicon.ico', // atalho para alguns browsers
+    apple: '/favicon.ico', // fallback para Apple Touch Icon (embora o ideal seja um png específico)
   },
 }
 

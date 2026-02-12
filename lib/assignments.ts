@@ -116,15 +116,46 @@ export async function getLastAssignmentForMember(member: string): Promise<Assign
     .select('date, member, cardId:card_id')
     .eq('member', member)
     .order('date', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
 
-  if (error) {
-    // No data found counts as an error for single()
-    if (error.code === 'PGRST116') return null;
-    console.error("[assignments] Erro ao buscar último sorteio:", error);
+  if (error || !data || data.length === 0) {
+    if (error && error.code !== 'PGRST116') {
+      console.error("[assignments] Erro ao buscar último sorteio:", error);
+    }
     return null;
   }
 
-  return data as Assignment;
+  return data[0] as Assignment;
+}
+
+// Retorna a atribuição de um membro em uma data específica
+export async function getAssignmentByMemberAndDate(member: string, date: string): Promise<Assignment | null> {
+  const { data, error } = await supabase
+    .from('assignments')
+    .select('date, member, cardId:card_id')
+    .eq('member', member)
+    .eq('date', date)
+    .limit(1);
+
+  if (error || !data || data.length === 0) {
+    return null;
+  }
+  return data[0] as Assignment;
+}
+
+/**
+ * Calcula a data do sábado anterior a uma data fornecida.
+ * Se a data fornecida for um sábado, retorna o sábado de 7 dias atrás.
+ */
+export function getPreviousSaturday(dateStr: string): string {
+  const date = new Date(dateStr + 'T12:00:00');
+  const day = date.getDay(); // 0=Dom, 1=Seg, ..., 6=Sáb
+
+  // Se for sábado (6), subtrai 7. Se não, subtrai (day + 1) para chegar no sábado anterior.
+  const diff = day === 6 ? 7 : day + 1;
+
+  const prevSat = new Date(date);
+  prevSat.setDate(date.getDate() - diff);
+
+  return prevSat.toISOString().split('T')[0];
 }

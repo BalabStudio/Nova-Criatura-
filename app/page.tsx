@@ -151,6 +151,13 @@ export default function Page() {
 
       {assignment && (
         <article className="card" style={{ marginTop: 12 }}>
+          {assignment.isRepeated && (
+            <div className="alert-warning">
+              ⚠️ <strong>Aviso:</strong> Você exerceu essa função no sábado anterior.
+              Como todas as demais funções já foram utilizadas por outros participantes nesta data,
+              esta função foi mantida para garantir que ninguém fique sem atribuição.
+            </div>
+          )}
           <img
             className="cardMedia"
             src={assignment.card.image || "/placeholder.svg"}

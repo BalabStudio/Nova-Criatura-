@@ -305,3 +305,17 @@ select {
 .calendarDay.selected:hover {
   background-color: rgba(12, 34, 143, 0.85);
 }
+
+.alert-warning {
+  background-color: #fff3cd;
+  border-bottom: 1px solid #ffeeba;
+  color: #856404;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.alert-warning strong {
+  font-weight: 700;
+}

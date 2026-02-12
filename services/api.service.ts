@@ -20,6 +20,7 @@ export interface Assignment {
 export interface PickResponse {
     assignment: Assignment;
     card: CardItem;
+    isRepeated?: boolean;
 }
 
 export interface ScheduleData {
