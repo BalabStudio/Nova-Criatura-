@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Calendar } from "@/components/calendar";
@@ -54,7 +54,7 @@ const ROLE_TO_CARD: Record<string, string> = {
   facilitacao: "facilitacao",
 };
 
-export default function ProgramacaoPage() {
+function ProgramacaoContent() {
   const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<string>(searchParams.get("date") || "");
   const [schedule, setSchedule] = useState<ScheduleData | null>(null);
@@ -308,5 +308,19 @@ export default function ProgramacaoPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function ProgramacaoPage() {
+  return (
+    <Suspense fallback={
+      <main className="container">
+        <header className="header" style={{ justifyContent: 'center' }}>
+          <p className="subtitle">Carregando...</p>
+        </header>
+      </main>
+    }>
+      <ProgramacaoContent />
+    </Suspense>
   );
 }
