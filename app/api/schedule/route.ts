@@ -100,13 +100,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       funcoes,
     };
 
-    // 3. Regra proativa: Se a programação tiver pelo menos 3 funções preenchidas (além do Richard),
-    // cria um snapshot inicial automático para garantir persistência histórica.
-    const filledCount = Object.values(funcoes).filter(v => typeof v === 'string' && v !== "Richard").length + funcoes.comunhao.length;
-    if (filledCount >= 3) {
-      await createSnapshot(isoDate, response, dayAssignments, "System (Auto)");
-    }
-
     return NextResponse.json(response);
   } catch (err) {
     return new NextResponse(JSON.stringify({ error: (err as Error).message }), {

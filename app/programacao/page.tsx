@@ -73,7 +73,7 @@ export default function ProgramacaoPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/schedule?date=${date}`);
+      const res = await fetch(`/api/schedule?date=${date}`, { cache: 'no-store' });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Falha ao carregar programação");
@@ -237,10 +237,10 @@ export default function ProgramacaoPage() {
                   </div>
                 ))}
 
-                <div style={{ marginBottom: 0 }}>
-                  <span>{EMOJI_MAP.comunhao} {LABEL_MAP.comunhao}:</span>{" "}
+                <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ minWidth: '140px' }}>{EMOJI_MAP.comunhao} {LABEL_MAP.comunhao}:</span>{" "}
                   {editMode ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
                       {[0, 1, 2].map(idx => (
                         <select
                           key={idx}
@@ -255,7 +255,14 @@ export default function ProgramacaoPage() {
                       ))}
                     </div>
                   ) : (
-                    <span style={{ fontWeight: 600 }}>{schedule.funcoes.comunhao.join(", ") || "A definir"}</span>
+                    (() => {
+                      const active = (schedule.funcoes.comunhao || []).filter(m => m && m.trim() !== "");
+                      return active.length > 0 ? (
+                        <span style={{ fontWeight: 600 }}>{active.join(", ")}</span>
+                      ) : (
+                        <span style={{ color: "rgba(15, 20, 25, 0.4)" }}>A definir</span>
+                      );
+                    })()
                   )}
                 </div>
 
