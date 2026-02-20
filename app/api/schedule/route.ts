@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getAssignments } from "@/lib/assignments";
 import { getCards } from "@/lib/cards";
@@ -26,6 +25,7 @@ const CARD_TO_ROLE: Record<string, string> = {
   visao: "visao",
   oferta: "oferta",
   lanche: "comunhao",
+  facilitacao: "facilitacao",
 };
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -39,30 +39,43 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     });
   }
 
-  // Garantir formato YYYY-MM-DD sem deslocamento de fuso horário
-  let isoDate = dateParam;
-  if (dateParam.includes("T")) {
-    isoDate = dateParam.split("T")[0];
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
-    return new NextResponse(JSON.stringify({ error: "Formato de data inválido. Use YYYY-MM-DD." }), {
+  const isoDate = new Date(dateParam).toISOString().slice(0, 10);
+  if (Number.isNaN(Date.parse(isoDate))) {
+    return new NextResponse(JSON.stringify({ error: "Data inválida." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
 
   try {
+    const dateObj = new Date(isoDate + "T00:00:00Z");
+    const weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const weekday = weekdayNames[dateObj.getUTCDay()];
+
+    // 1. Tenta buscar o snapshot mais recente
+    const { getLatestSnapshot, createSnapshot } = await import("@/lib/assignments");
+    const snapshot = await getLatestSnapshot(isoDate);
+
+    if (snapshot) {
+      return NextResponse.json({
+        ...snapshot.content,
+        date: isoDate,
+        weekday,
+        version: snapshot.version,
+        isSnapshot: true
+      });
+    }
+
+    // 2. Se não houver snapshot, calcula dinamicamente
     const assignments = await getAssignments();
     const cards = getCards();
 
     // Filtra sorteios para a data
     const dayAssignments = assignments.filter((a) => a.date === isoDate);
-    const cardMap = new Map(cards.map((c) => [c.id, c]));
 
     // Monta a programação
     const funcoes: ScheduleResponse["funcoes"] = {
-      facilitacao: "Richard", // Sempre Richard
+      facilitacao: "Richard", // Default, but can be overridden
       comunhao: [],
     };
 
@@ -72,25 +85,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       const role = CARD_TO_ROLE[assignment.cardId];
       if (role === "comunhao") {
         comunhaoMembers.push(assignment.member);
-      } else if (role && role !== "facilitacao") {
-        funcoes[role as keyof Omit<ScheduleResponse["funcoes"], "facilitacao" | "comunhao">] =
+      } else if (role) {
+        funcoes[role as keyof Omit<ScheduleResponse["funcoes"], "comunhao">] =
           assignment.member;
       }
     });
 
     funcoes.comunhao = comunhaoMembers.slice(0, 3); // Máximo 3
 
-    // Formata a data
-    const dateObj = new Date(isoDate + "T00:00:00Z");
-    const weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-    const weekday = weekdayNames[dateObj.getUTCDay()];
-
     const response: ScheduleResponse = {
       date: isoDate,
       weekday,
-      horario: "17:00", // Horário padrão (pode ser configurável)
+      horario: "17:00",
       funcoes,
     };
+
+    // 3. Regra proativa: Se a programação tiver pelo menos 3 funções preenchidas (além do Richard),
+    // cria um snapshot inicial automático para garantir persistência histórica.
+    const filledCount = Object.values(funcoes).filter(v => typeof v === 'string' && v !== "Richard").length + funcoes.comunhao.length;
+    if (filledCount >= 3) {
+      await createSnapshot(isoDate, response, dayAssignments, "System (Auto)");
+    }
 
     return NextResponse.json(response);
   } catch (err) {

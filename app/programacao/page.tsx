@@ -1,9 +1,27 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Calendar } from "@/components/calendar";
-import { apiService, ScheduleData } from "@/services/api.service";
+import members from "@/data/members.json";
+
+interface ScheduleData {
+  date: string;
+  weekday: string;
+  horario: string;
+  funcoes: {
+    oracao?: string;
+    louvor?: string;
+    dinamica?: string;
+    visao?: string;
+    facilitacao: string;
+    oferta?: string;
+    comunhao: string[];
+  };
+  version?: number;
+  isSnapshot?: boolean;
+}
 
 const EMOJI_MAP: Record<string, string> = {
   oracao: "🙏",
@@ -25,20 +43,42 @@ const LABEL_MAP: Record<string, string> = {
   comunhao: "Comunhão",
 };
 
+// Re-map for saving
+const ROLE_TO_CARD: Record<string, string> = {
+  oracao: "oracao",
+  louvor: "louvor",
+  dinamica: "quebra-gelo",
+  visao: "visao",
+  oferta: "oferta",
+  comunhao: "lanche",
+  facilitacao: "facilitacao",
+};
+
 export default function ProgramacaoPage() {
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const searchParams = useSearchParams();
+  const [selectedDate, setSelectedDate] = useState<string>(searchParams.get("date") || "");
   const [schedule, setSchedule] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [editMode, setEditMode] = useState(searchParams.get("edit") === "true");
 
   const handleSelectDate = useCallback(async (date: string) => {
     setSelectedDate(date);
     setSchedule(null);
     setErrorMsg(null);
+    setSuccessMsg(null);
     setLoading(true);
 
     try {
-      const data = await apiService.getSchedule(date);
+      const res = await fetch(`/api/schedule?date=${date}`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Falha ao carregar programação");
+      }
+      const data = await res.json();
       setSchedule(data);
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -47,7 +87,83 @@ export default function ProgramacaoPage() {
     }
   }, []);
 
-  const formatDate = (isoDate: string, weekday: string) => {
+  useEffect(() => {
+    if (selectedDate) {
+      handleSelectDate(selectedDate);
+    }
+  }, [selectedDate, handleSelectDate]);
+
+  const handleEditChange = (role: string, member: string) => {
+    if (!schedule) return;
+    setSchedule({
+      ...schedule,
+      funcoes: {
+        ...schedule.funcoes,
+        [role]: member
+      }
+    });
+  };
+
+  const handleComunhaoChange = (index: number, member: string) => {
+    if (!schedule) return;
+    const newComunhao = [...schedule.funcoes.comunhao];
+    newComunhao[index] = member;
+    setSchedule({
+      ...schedule,
+      funcoes: {
+        ...schedule.funcoes,
+        comunhao: newComunhao.filter((m, i) => m !== "" || i < 3) // Mantém pelo menos os slots vazios se quiser, mas aqui limpamos
+      }
+    });
+  };
+
+  const handleSave = async () => {
+    if (!schedule || !password) return;
+    setSaving(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      // Prepara os assignments pro backend
+      const assignments: { member: string; cardId: string }[] = [];
+      Object.entries(schedule.funcoes).forEach(([role, member]) => {
+        if (role === 'comunhao') {
+          (member as string[]).forEach(m => {
+            if (m) assignments.push({ member: m, cardId: ROLE_TO_CARD[role] });
+          });
+        } else if (member && ROLE_TO_CARD[role]) {
+          assignments.push({ member: member as string, cardId: ROLE_TO_CARD[role] });
+        }
+      });
+
+      const res = await fetch("/api/schedule/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password,
+          date: schedule.date,
+          adminName: "Richard", // Richard é o único que pode abrir o modo edit via lobby
+          assignments,
+          fullSchedule: schedule
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Falha ao salvar alterações");
+      }
+
+      setSuccessMsg("Programação salva com sucesso e snapshot gerado!");
+      setEditMode(false);
+      handleSelectDate(schedule.date); // Recarrega
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatDate = (isoDate: string) => {
     const [year, month, day] = isoDate.split("-");
     return `${day}.${month}`;
   };
@@ -60,8 +176,10 @@ export default function ProgramacaoPage() {
     <main className="container">
       <header className="header">
         <div style={{ flex: 1 }}>
-          <h1 className="title">Programação</h1>
-          <p className="subtitle">Selecione uma data para ver quem vai fazer cada função.</p>
+          <h1 className="title">{editMode ? "Editar Programação" : "Programação"}</h1>
+          <p className="subtitle">
+            {editMode ? " Richard, ajuste as funções conforme necessário." : "Selecione uma data para ver quem vai fazer cada função."}
+          </p>
         </div>
         <Link href="/" style={{ textDecoration: "none" }}>
           <button className="btn" style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600 }}>
@@ -71,14 +189,18 @@ export default function ProgramacaoPage() {
       </header>
 
       <div className="grid">
-        <label className="cardTitle">Escolha a Data</label>
-        <Calendar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
+        {!editMode && (
+          <>
+            <label className="cardTitle">Escolha a Data</label>
+            <Calendar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
+          </>
+        )}
 
-        {errorMsg && (
-          <div className="card" style={{ marginTop: 12 }}>
+        {(errorMsg || successMsg) && (
+          <div className="card" style={{ marginTop: 12, borderColor: errorMsg ? '#d9534f' : '#28a745' }}>
             <div className="cardBody">
-              <p className="cardTitle">Erro</p>
-              <p className="cardDesc">{errorMsg}</p>
+              <p className="cardTitle" style={{ color: errorMsg ? '#d9534f' : '#28a745' }}>{errorMsg ? "Erro" : "Sucesso"}</p>
+              <p className="cardDesc">{errorMsg || successMsg}</p>
             </div>
           </div>
         )}
@@ -86,21 +208,83 @@ export default function ProgramacaoPage() {
         {schedule && (
           <article className="card" style={{ marginTop: 12 }}>
             <div className="cardBody">
-              <h2 className="cardTitle">
-                Nova Criatura — {schedule.weekday} {formatDate(schedule.date, schedule.weekday)} às {schedule.horario}
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 className="cardTitle">
+                  Nova Criatura — {schedule.weekday} {formatDate(schedule.date)} às {schedule.horario}
+                </h2>
+                {schedule.version && (
+                  <span style={{ fontSize: '10px', color: '#888' }}>v{schedule.version}</span>
+                )}
+              </div>
 
               <div style={{ marginTop: 14, lineHeight: 1.8 }}>
                 {["oracao", "louvor", "dinamica", "visao", "facilitacao", "oferta"].map((role) => (
-                  <div key={role} style={{ marginBottom: 8 }}>
-                    <span>{EMOJI_MAP[role]} {LABEL_MAP[role]}:</span> {renderMember(schedule.funcoes[role as keyof typeof schedule.funcoes] as string)}
+                  <div key={role} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ minWidth: '140px' }}>{EMOJI_MAP[role]} {LABEL_MAP[role]}:</span>
+                    {editMode ? (
+                      <select
+                        className="cardSub"
+                        value={schedule.funcoes[role as keyof typeof schedule.funcoes] as string || ""}
+                        onChange={(e) => handleEditChange(role, e.target.value)}
+                        style={{ padding: '4px', fontSize: '14px', flex: 1 }}
+                      >
+                        <option value="">A definir</option>
+                        {members.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    ) : (
+                      renderMember(schedule.funcoes[role as keyof typeof schedule.funcoes] as string)
+                    )}
                   </div>
                 ))}
 
-                {schedule.funcoes.comunhao.length > 0 && (
-                  <div style={{ marginBottom: 0 }}>
-                    <span>{EMOJI_MAP.comunhao} {LABEL_MAP.comunhao}:</span>{" "}
-                    <span style={{ fontWeight: 600 }}>{schedule.funcoes.comunhao.join(", ")}</span>
+                <div style={{ marginBottom: 0 }}>
+                  <span>{EMOJI_MAP.comunhao} {LABEL_MAP.comunhao}:</span>{" "}
+                  {editMode ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+                      {[0, 1, 2].map(idx => (
+                        <select
+                          key={idx}
+                          className="cardSub"
+                          value={schedule.funcoes.comunhao[idx] || ""}
+                          onChange={(e) => handleComunhaoChange(idx, e.target.value)}
+                          style={{ padding: '4px', fontSize: '14px' }}
+                        >
+                          <option value="">A definir</option>
+                          {members.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ fontWeight: 600 }}>{schedule.funcoes.comunhao.join(", ") || "A definir"}</span>
+                  )}
+                </div>
+
+                {editMode && (
+                  <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 16 }}>
+                    <label className="cardTitle" style={{ fontSize: '14px' }}>Senha de Admin para Salvar</label>
+                    <input
+                      type="password"
+                      className="cardSub"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Senha do Richard"
+                      style={{ marginBottom: 16 }}
+                    />
+                    <button
+                      className="btn"
+                      disabled={saving || !password}
+                      onClick={handleSave}
+                    >
+                      {saving ? "Salvando..." : "Salvar Alterações"}
+                    </button>
+                    <button
+                      className="btn"
+                      style={{ backgroundColor: '#ccc', marginTop: 8 }}
+                      onClick={() => setEditMode(false)}
+                      disabled={saving}
+                    >
+                      Cancelar
+                    </button>
                   </div>
                 )}
               </div>

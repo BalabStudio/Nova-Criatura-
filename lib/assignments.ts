@@ -82,16 +82,46 @@ export async function assign(member: string, date: string, cardId: string): Prom
   };
 }
 
-export async function resetAssignments(): Promise<void> {
+export async function resetAssignments(date: string, adminName: string): Promise<void> {
+  // Regra de ouro: A partir de 28/02/2026, nada pode ser apagado logicamente ou fisicamente.
+  // No entanto, o reset "Zerar semana atual" é permitido se for para limpar rascunhos,
+  // mas para datas passadas (<Hoje) ou após 28/02/2026, devemos ser cautelosos.
+  // O requisito diz: "A partir de 28/02/2026, nada pode ser apagado."
+  // E "Zerar" deve limpar apenas os registros do sábado selecionado.
+
+  const limitDate = new Date("2026-02-28");
+  const targetDate = new Date(date);
+
+  if (targetDate >= limitDate) {
+    throw new Error("A partir de 28/02/2026, a programação desta data não pode ser zerada (Histórico Protegido).");
+  }
+
+  // Busca dados atuais para o log de auditoria
+  const { data: beforeItems } = await supabase
+    .from('assignments')
+    .select('*')
+    .eq('date', date);
+
   const { error } = await supabase
     .from('assignments')
     .delete()
-    .neq('member', ''); // Deleta tudo (hack comum para delete global no supabase)
+    .eq('date', date);
 
   if (error) {
     console.error("[assignments] Erro ao resetar no Supabase:", error);
     throw new Error("Falha ao resetar o banco de dados.");
   }
+
+  // Registra auditoria
+  await supabase.from('admin_actions').insert([{
+    action: 'RESET',
+    admin_name: adminName,
+    date_affected: date,
+    details: {
+      before: beforeItems,
+      reason: "Zerar semana atual"
+    }
+  }]);
 }
 
 // Retorna cardIds já usados em uma data específica
@@ -116,46 +146,108 @@ export async function getLastAssignmentForMember(member: string): Promise<Assign
     .select('date, member, cardId:card_id')
     .eq('member', member)
     .order('date', { ascending: false })
-    .limit(1);
+    .limit(1)
+    .single();
 
-  if (error || !data || data.length === 0) {
-    if (error && error.code !== 'PGRST116') {
-      console.error("[assignments] Erro ao buscar último sorteio:", error);
-    }
+  if (error) {
+    // No data found counts as an error for single()
+    if (error.code === 'PGRST116') return null;
+    console.error("[assignments] Erro ao buscar último sorteio:", error);
     return null;
   }
 
-  return data[0] as Assignment;
+  return data as Assignment;
 }
 
-// Retorna a atribuição de um membro em uma data específica
-export async function getAssignmentByMemberAndDate(member: string, date: string): Promise<Assignment | null> {
-  const { data, error } = await supabase
-    .from('assignments')
-    .select('date, member, cardId:card_id')
-    .eq('member', member)
+// --- Snapshots e Auditoria ---
+
+export async function createSnapshot(date: string, content: any, assignments: any[], adminName?: string) {
+  // Busca a versão mais recente para essa data
+  const { data: latest } = await supabase
+    .from('schedule_snapshots')
+    .select('version')
     .eq('date', date)
+    .order('version', { ascending: false })
     .limit(1);
 
-  if (error || !data || data.length === 0) {
+  const nextVersion = (latest && latest.length > 0 ? latest[0].version : 0) + 1;
+
+  const { data, error } = await supabase
+    .from('schedule_snapshots')
+    .insert([{
+      date,
+      content,
+      assignments,
+      version: nextVersion,
+      edited_by: adminName || "System"
+    }])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[assignments] Erro ao criar snapshot:", error);
+    throw new Error("Falha ao salvar snapshot da programação.");
+  }
+
+  return data;
+}
+
+export async function getLatestSnapshot(date: string) {
+  const { data, error } = await supabase
+    .from('schedule_snapshots')
+    .select('*')
+    .eq('date', date)
+    .order('version', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error("[assignments] Erro ao buscar snapshot:", error);
     return null;
   }
-  return data[0] as Assignment;
+
+  return data && data.length > 0 ? data[0] : null;
+}
+
+export async function logAdminAction(action: string, adminName: string, date: string, details: any) {
+  const { error } = await supabase
+    .from('admin_actions')
+    .insert([{
+      action,
+      admin_name: adminName,
+      date_affected: date,
+      details
+    }]);
+
+  if (error) {
+    console.error("[assignments] Erro ao logar ação admin:", error);
+  }
 }
 
 /**
- * Calcula a data do sábado anterior a uma data fornecida.
- * Se a data fornecida for um sábado, retorna o sábado de 7 dias atrás.
+ * Atualiza múltiplos assignments de uma vez (usado pelo Admin)
  */
-export function getPreviousSaturday(dateStr: string): string {
-  const date = new Date(dateStr + 'T12:00:00');
-  const day = date.getDay(); // 0=Dom, 1=Seg, ..., 6=Sáb
+export async function updateAssignments(date: string, newAssignments: { member: string, cardId: string }[], adminName: string) {
+  // Busca estado atual para log
+  const { data: before } = await supabase.from('assignments').select('*').eq('date', date);
 
-  // Se for sábado (6), subtrai 7. Se não, subtrai (day + 1) para chegar no sábado anterior.
-  const diff = day === 6 ? 7 : day + 1;
+  // Deleta atuais
+  const { error: delError } = await supabase.from('assignments').delete().eq('date', date);
+  if (delError) throw delError;
 
-  const prevSat = new Date(date);
-  prevSat.setDate(date.getDate() - diff);
+  // Insere novos
+  const toInsert = newAssignments.map(a => ({
+    date,
+    member: a.member,
+    card_id: a.cardId
+  }));
 
-  return prevSat.toISOString().split('T')[0];
+  const { error: insError } = await supabase.from('assignments').insert(toInsert);
+  if (insError) throw insError;
+
+  // Log de auditoria
+  await logAdminAction('EDIT', adminName, date, {
+    before,
+    after: toInsert,
+    reason: "Edição administrativa de programação"
+  });
 }

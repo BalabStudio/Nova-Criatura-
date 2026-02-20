@@ -1,16 +1,29 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Calendar } from "@/components/calendar";
 import members from "@/data/members.json";
-import { apiService, PickResponse } from "@/services/api.service";
+
+type CardItem = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  image: string;
+  description?: string;
+  time?: string;
+};
 
 export default function Page() {
+  const router = useRouter();
   const [selectedMember, setSelectedMember] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [assignment, setAssignment] = useState<PickResponse | null>(null);
+  const [assignment, setAssignment] = useState<{
+    assignment: { member: string; date: string; cardId: string };
+    card: CardItem;
+  } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
@@ -21,7 +34,16 @@ export default function Page() {
     setErrorMsg(null);
     setAssignment(null);
     try {
-      const data = await apiService.pickFunction(selectedMember, selectedDate);
+      const res = await fetch("/api/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member: selectedMember, date: selectedDate }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data?.error || `Falha (HTTP ${res.status})`);
+      }
+      const data = await res.json();
       setAssignment(data);
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -31,21 +53,30 @@ export default function Page() {
   }, [selectedMember, selectedDate]);
 
   const resetAssignmentsHandler = useCallback(async () => {
+    if (!selectedDate) {
+      setResetMsg("Selecione uma data primeiro.");
+      return;
+    }
     setResetMsg(null);
     setLoading(true);
     try {
-      await apiService.resetAssignments(password);
+      const res = await fetch("/api/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, date: selectedDate, adminName: selectedMember }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data?.error || `Falha (HTTP ${res.status})`);
+      }
       setAssignment(null);
-      setSelectedDate("");
-      setSelectedMember("");
-      setPassword("");
-      setResetMsg("Todos os sorteios foram zerados.");
+      setResetMsg(`Sorteios de ${selectedDate} foram zerados.`);
     } catch (err: any) {
       setResetMsg(err.message);
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, [password, selectedDate, selectedMember]);
 
   const readyToPick = selectedMember && selectedDate && !assignment;
   const isAdmin = selectedMember === "Richard";
@@ -56,14 +87,31 @@ export default function Page() {
         <div style={{ flex: 1 }}>
           <h1 className="title">Programação mais TOP de uma Célula de Todos os Tempos 🔥</h1>
           <p className="subtitle">
-            Selecione o seu nome e a data da célula, depois clique em &quot;Escolher&quot; para receber sua função.
+            Selecione o seu nome e a data da célula, depois clique em "Escolher" para receber sua função.
           </p>
         </div>
-        <Link href="/programacao" style={{ textDecoration: "none" }}>
-          <button className="btn" style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600 }}>
-            Ver Programação
-          </button>
-        </Link>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link href="/programacao" style={{ textDecoration: "none" }}>
+            <button className="btn" style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600 }}>
+              Ver Programação
+            </button>
+          </Link>
+          {isAdmin && selectedDate && (
+            <button
+              className="btn"
+              style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600, backgroundColor: '#0070f3' }}
+              onClick={() => {
+                if (password === "novacriatura01") {
+                  router.push(`/programacao?edit=true&date=${selectedDate}`);
+                } else {
+                  setResetMsg("Senha incorreta para editar.");
+                }
+              }}
+            >
+              Editar Programação
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="grid">
@@ -72,7 +120,7 @@ export default function Page() {
           id="member-select"
           className="cardSub"
           value={selectedMember}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+          onChange={(e) => {
             setSelectedMember(e.target.value);
             setAssignment(null);
             setErrorMsg(null);
@@ -105,7 +153,7 @@ export default function Page() {
               id="pwd"
               type="password"
               value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               className="cardSub"
             />
           </>
@@ -114,7 +162,7 @@ export default function Page() {
         <button
           className="btn"
           onClick={pickFunction}
-          disabled={!readyToPick || loading}
+          disabled={!readyToPick || loading || (isAdmin && !password)}
           aria-busy={loading}
         >
           {loading ? "Processando..." : "Escolher função"}
@@ -124,10 +172,10 @@ export default function Page() {
             className="btn"
             style={{ marginTop: 8, backgroundColor: "#d9534f" }}
             onClick={resetAssignmentsHandler}
-            disabled={loading || !password}
+            disabled={loading || !password || !selectedDate}
             aria-busy={loading}
           >
-            {loading ? "Aguarde..." : "Zerar sorteios"}
+            {loading ? "Aguarde..." : "Zerar semana atual"}
           </button>
         )}
       </div>
@@ -151,13 +199,6 @@ export default function Page() {
 
       {assignment && (
         <article className="card" style={{ marginTop: 12 }}>
-          {assignment.isRepeated && (
-            <div className="alert-warning">
-              ⚠️ <strong>Aviso:</strong> Você exerceu essa função no sábado anterior.
-              Como todas as demais funções já foram utilizadas por outros participantes nesta data,
-              esta função foi mantida para garantir que ninguém fique sem atribuição.
-            </div>
-          )}
           <img
             className="cardMedia"
             src={assignment.card.image || "/placeholder.svg"}
