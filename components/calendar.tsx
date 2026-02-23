@@ -8,8 +8,9 @@ interface CalendarProps {
 }
 
 export function Calendar({ onSelectDate, selectedDate }: CalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(0); // 0 = Jan, 11 = Dec
-  const [currentYear] = useState(2026);
+  const now = new Date();
+  const [currentMonth, setCurrentMonth] = useState(now.getMonth());
+  const [currentYear, setCurrentYear] = useState(now.getFullYear());
 
   const daysInMonth = useMemo(() => {
     return new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -35,17 +36,25 @@ export function Calendar({ onSelectDate, selectedDate }: CalendarProps) {
   }
 
   const handlePrevMonth = () => {
-    setCurrentMonth(prev => (prev === 0 ? 11 : prev - 1));
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(prev => prev - 1);
+    } else {
+      setCurrentMonth(prev => prev - 1);
+    }
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth(prev => (prev === 11 ? 0 : prev + 1));
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(prev => prev + 1);
+    } else {
+      setCurrentMonth(prev => prev + 1);
+    }
   };
 
   const handleSelectDay = (day: number) => {
-    const dateStr = new Date(currentYear, currentMonth, day)
-      .toISOString()
-      .split('T')[0];
+    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     onSelectDate(dateStr);
   };
 

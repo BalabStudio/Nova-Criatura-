@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAssignments } from "@/lib/assignments";
+import { getAssignments, getLatestSnapshot } from "@/lib/assignments";
 import { getCards } from "@/lib/cards";
 
 interface ScheduleResponse {
@@ -38,49 +38,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       headers: { "Content-Type": "application/json" },
     });
   }
-
-  const isoDate = new Date(dateParam).toISOString().slice(0, 10);
-  if (Number.isNaN(Date.parse(isoDate))) {
-    return new NextResponse(JSON.stringify({ error: "Data inválida." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
   try {
-    const dateObj = new Date(isoDate + "T00:00:00Z");
+    // Validação de data mais robusta
+    const isoDate = dateParam.match(/^\d{4}-\d{2}-\d{2}$/) ? dateParam : new Date(dateParam).toISOString().slice(0, 10);
+
+    const dateObj = new Date(isoDate + "T12:00:00Z"); // Use noon to avoid day shifts
     const weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
     const weekday = weekdayNames[dateObj.getUTCDay()];
 
-    // 1. Tenta buscar o snapshot mais recente
-    const { getLatestSnapshot, createSnapshot } = await import("@/lib/assignments");
+    // 1. Busca os dados reais/vivos
+    const dayAssignments = await getAssignments(isoDate);
+
+    // 2. Busca snapshot para metadados (horario, facilitacao padrao se nao houver assignment)
     const snapshot = await getLatestSnapshot(isoDate);
 
-    if (snapshot) {
-      return NextResponse.json({
-        ...snapshot.content,
-        date: isoDate,
-        weekday,
-        version: snapshot.version,
-        isSnapshot: true
-      });
-    }
-
-    // 2. Se não houver snapshot, calcula dinamicamente
-    const assignments = await getAssignments();
-    const cards = getCards();
-
-    // Filtra sorteios para a data
-    const dayAssignments = assignments.filter((a) => a.date === isoDate);
-
-    // Monta a programação
+    // Monta a programação base
     const funcoes: ScheduleResponse["funcoes"] = {
-      facilitacao: "Richard", // Default, but can be overridden
+      facilitacao: "Richard",
       comunhao: [],
     };
 
     const comunhaoMembers: string[] = [];
 
+    // Prioridade 1: Dados vivos do banco (assignments)
     dayAssignments.forEach((assignment) => {
       const role = CARD_TO_ROLE[assignment.cardId];
       if (role === "comunhao") {
@@ -91,13 +71,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       }
     });
 
-    funcoes.comunhao = comunhaoMembers.slice(0, 3); // Máximo 3
+    funcoes.comunhao = comunhaoMembers.slice(0, 3);
 
-    const response: ScheduleResponse = {
+    // Se houver snapshot, podemos usar o horário ou facilitador se não estiver nos assignments
+    const response: any = {
       date: isoDate,
       weekday,
-      horario: "17:00",
+      horario: snapshot?.content?.horario || "17:00",
       funcoes,
+      version: snapshot?.version,
+      isSnapshot: !!snapshot
     };
 
     return NextResponse.json(response);

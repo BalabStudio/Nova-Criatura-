@@ -106,17 +106,24 @@ function ProgramacaoContent() {
 
   const handleComunhaoChange = (index: number, member: string) => {
     if (!schedule) return;
-    const newComunhao = [...schedule.funcoes.comunhao];
-    newComunhao[index] = member;
+    // Garante que temos um array de pelo menos 3 posições
+    const currentComunhao = [...(schedule.funcoes.comunhao || [])];
+    while (currentComunhao.length < 3) currentComunhao.push("");
+
+    currentComunhao[index] = member;
+
     setSchedule({
       ...schedule,
       funcoes: {
         ...schedule.funcoes,
-        comunhao: newComunhao.filter((m, i) => m !== "" || i < 3) // Mantém pelo menos os slots vazios se quiser, mas aqui limpamos
+        comunhao: currentComunhao
       }
     });
   };
-
+  const handleHorarioChange = (val: string) => {
+    if (!schedule) return;
+    setSchedule({ ...schedule, horario: val });
+  };
   const handleSave = async () => {
     if (!schedule || !password) return;
     setSaving(true);
@@ -265,6 +272,20 @@ function ProgramacaoContent() {
                     })()
                   )}
                 </div>
+
+                {editMode && (
+                  <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px dashed #eee', paddingTop: '12px' }}>
+                    <span style={{ minWidth: '140px' }}>⏰ Horário:</span>
+                    <input
+                      type="text"
+                      className="cardSub"
+                      value={schedule.horario}
+                      onChange={(e) => handleHorarioChange(e.target.value)}
+                      style={{ padding: '4px', fontSize: '14px', flex: 1 }}
+                      placeholder="Ex: 17:00"
+                    />
+                  </div>
+                )}
 
                 {editMode && (
                   <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 16 }}>

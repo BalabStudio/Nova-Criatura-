@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCards, pickRandomCard } from "@/lib/cards";
-import { assign, isAssigned, getAllowedCards, getUsedCardIdsForDate, getLastAssignmentForMember, getAssignments } from "@/lib/assignments";
+import { getAssignments, assign, isAssigned, getUsedCardIdsForDate, getLastAssignmentForMember, getAllowedCards } from "@/lib/assignments";
+import { supabase } from "@/lib/supabase";
+import members from "@/data/members.json";
 
 export async function POST(req: NextRequest) {
   let body: { member?: string; date?: string };
@@ -12,84 +14,127 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   }
+
   const { member, date } = body;
+
   if (!member || !date) {
     return new NextResponse(JSON.stringify({ error: "Campos 'member' e 'date' são obrigatórios." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
-  const isoDate = new Date(date).toISOString().slice(0, 10);
+
+  // Validação: Membro deve existir na lista
+  if (!members.includes(member)) {
+    return new NextResponse(JSON.stringify({ error: "Participante não encontrado na lista oficial." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Validação de data robusta (YYYY-MM-DD)
+  const isoDate = date.match(/^\d{4}-\d{2}-\d{2}$/) ? date : new Date(date).toISOString().slice(0, 10);
+
   if (Number.isNaN(Date.parse(isoDate))) {
     return new NextResponse(JSON.stringify({ error: "Data inválida." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
-  if (await isAssigned(member, isoDate)) {
-    return new NextResponse(JSON.stringify({ error: "Esta pessoa já possui uma função para esta data." }), {
-      status: 409,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Filtra cards por restrição do membro
-  let cards = getCards();
-  const allowedCards = getAllowedCards(member);
-  if (allowedCards.length > 0) {
-    cards = cards.filter((c) => allowedCards.includes(c.id));
-  }
-
-  if (cards.length === 0) {
-    return new NextResponse(JSON.stringify({ error: "Nenhuma função disponível para este membro." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
 
   try {
-    // Obtém cardIds já usados nessa data
-    const usedCardIds = await getUsedCardIdsForDate(isoDate);
-    const allAssignments = await getAssignments();
-    const lancheCountForDate = allAssignments.filter((a) => a.date === isoDate && a.cardId === "lanche").length;
+    // 1. Verifica se o membro já tem função nesta data (Prevenção nível aplicação)
+    if (await isAssigned(member, isoDate)) {
+      return new NextResponse(JSON.stringify({ error: `${member}, você já possui uma função para este dia!` }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-    let availableCards = cards.filter((c) => {
-      // "lanche" pode ter até 3 pessoas
-      if (c.id === "lanche") {
-        return lancheCountForDate < 3;
-      }
-      // Outros cards: apenas 1 por data
+    const allCards = getCards();
+
+    // 2. Obtém cards já usados nessa data e histórico do membro
+    const [usedCardIds, allMemberAssignments] = await Promise.all([
+      getUsedCardIdsForDate(isoDate),
+      supabase.from('assignments').select('card_id').eq('member', member)
+    ]);
+
+    if (allMemberAssignments.error) {
+      throw new Error("Falha ao consultar histórico do banco de dados.");
+    }
+
+    const memberHistory = (allMemberAssignments.data || []).map((a: { card_id: string }) => a.card_id);
+    const dayAssignments = await getAssignments(isoDate);
+    const lancheCountForDate = dayAssignments.filter((a) => a.cardId === "lanche").length;
+
+    // 3. Aplica restrições de membro (Ex: Ana/Hiris)
+    const allowedCardIds = getAllowedCards(member);
+    let candidateCards = allCards;
+
+    if (allowedCardIds && allowedCardIds.length > 0) {
+      candidateCards = allCards.filter(c => allowedCardIds.includes(c.id));
+    }
+
+    // 4. Filtra o que está disponível fisicamente na data
+    let physicallyAvailableCards = candidateCards.filter((c) => {
+      if (c.id === "lanche") return lancheCountForDate < 3;
       return !usedCardIds.includes(c.id);
     });
 
-    // Evita que o membro repita a última função (a menos que seja lanche)
-    const lastAssignment = await getLastAssignmentForMember(member);
-    if (lastAssignment && lastAssignment.cardId !== "lanche") {
-      availableCards = availableCards.filter((c) => c.id !== lastAssignment.cardId);
+    if (physicallyAvailableCards.length === 0) {
+      const errorMsg = allowedCardIds.length > 0
+        ? `Nenhuma das funções permitidas para ${member} está disponível nesta data.`
+        : "Todas as funções para esta data já foram preenchidas.";
+
+      return new NextResponse(JSON.stringify({ error: errorMsg }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    if (availableCards.length === 0) {
-      // Fallback: se não houver opção que não repita, tenta qualquer uma disponível na data
-      availableCards = cards.filter((c) => {
-        if (c.id === "lanche") {
-          return lancheCountForDate < 3;
-        }
-        return !usedCardIds.includes(c.id);
-      });
-      if (availableCards.length === 0) {
-        return new NextResponse(JSON.stringify({ error: "Sem funções disponíveis para esta data." }), {
+    // 5. Algoritmo de Rotação Justa (Frequência Mínima)
+    const frequency: Record<string, number> = {};
+    candidateCards.forEach(c => frequency[c.id] = 0);
+    memberHistory.forEach((id: string) => {
+      if (frequency[id] !== undefined) frequency[id]++;
+    });
+
+    const lastAssignment = await getLastAssignmentForMember(member);
+
+    // Tenta evitar repetição da semana passada
+    let rotationCards = physicallyAvailableCards.filter(c => !lastAssignment || c.id !== lastAssignment.cardId);
+    if (rotationCards.length === 0) rotationCards = physicallyAvailableCards;
+
+    // Escolhe os cards menos realizados pelo membro
+    const minFreq = Math.min(...rotationCards.map(c => frequency[c.id]));
+    let bestCards = rotationCards.filter(c => frequency[c.id] === minFreq);
+
+    const card = pickRandomCard(bestCards);
+
+    // 6. Persistência
+    try {
+      const newAssign = await assign(member, isoDate, card.id);
+      return NextResponse.json({ assignment: newAssign, card });
+    } catch (dbErr: any) {
+      // Tratamento de concorrência: se o UNIQUE do banco barrar o que a aplicação não viu
+      if (dbErr.message?.includes("unique_member_date")) {
+        return new NextResponse(JSON.stringify({ error: "Você já foi sorteado por outro dispositivo simultaneamente." }), {
           status: 409,
           headers: { "Content-Type": "application/json" },
         });
       }
+      if (dbErr.message?.includes("unique_card_per_day")) {
+        return new NextResponse(JSON.stringify({ error: "Esta função acabou de ser preenchida por outra pessoa." }), {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw dbErr;
     }
 
-    const card = pickRandomCard(availableCards);
-    const newAssign = await assign(member, isoDate, card.id);
-    return NextResponse.json({ assignment: newAssign, card });
-  } catch (err) {
-    console.error("[api/assign] Erro:", err);
-    return new NextResponse(JSON.stringify({ error: (err as Error).message }), {
+  } catch (err: any) {
+    console.error("[api/assign] Erro crítico:", err);
+    return new NextResponse(JSON.stringify({ error: "Erro interno ao processar o sorteio. Tente novamente." }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

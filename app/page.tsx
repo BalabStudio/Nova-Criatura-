@@ -101,11 +101,7 @@ export default function Page() {
               className="btn"
               style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600, backgroundColor: '#0070f3' }}
               onClick={() => {
-                if (password === "novacriatura01") {
-                  router.push(`/programacao?edit=true&date=${selectedDate}`);
-                } else {
-                  setResetMsg("Senha incorreta para editar.");
-                }
+                router.push(`/programacao?edit=true&date=${selectedDate}`);
               }}
             >
               Editar Programação
@@ -135,7 +131,7 @@ export default function Page() {
         </select>
 
         <label className="cardTitle" style={{ marginTop: 10 }}>
-          Data (2026)
+          Selecione o Dia
         </label>
         <Calendar
           selectedDate={selectedDate}

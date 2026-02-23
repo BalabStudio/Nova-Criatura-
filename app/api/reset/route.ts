@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resetAssignments } from "@/lib/assignments";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "novacriatura01";
+import { checkAdminPassword } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   let body: { password?: string; date?: string; adminName?: string };
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
   const { password, date, adminName } = body;
 
-  if (password !== ADMIN_PASSWORD) {
+  if (!checkAdminPassword(password)) {
     return new NextResponse(JSON.stringify({ error: "Senha incorreta." }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

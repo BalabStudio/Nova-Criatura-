@@ -24,10 +24,21 @@ export function hasRestriction(member: string): boolean {
   return !!MEMBER_RESTRICTIONS[member];
 }
 
-export async function getAssignments(): Promise<Assignment[]> {
-  const { data, error } = await supabase
+export async function getAssignments(date?: string): Promise<Assignment[]> {
+  let query = supabase
     .from('assignments')
     .select('date, member, cardId:card_id');
+
+  if (date) {
+    query = query.eq('date', date);
+  } else {
+    // Busca apenas os últimos 30 dias se nenhuma data for informada, para performance
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    query = query.gte('date', thirtyDaysAgo.toISOString().split('T')[0]);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("[assignments] Erro ao buscar no Supabase:", error);
@@ -89,11 +100,12 @@ export async function resetAssignments(date: string, adminName: string): Promise
   // O requisito diz: "A partir de 28/02/2026, nada pode ser apagado."
   // E "Zerar" deve limpar apenas os registros do sábado selecionado.
 
-  const limitDate = new Date("2026-02-28");
-  const targetDate = new Date(date);
+  // Garante comparação consistente (meio-dia UTC)
+  const limitDate = new Date("2026-03-01T12:00:00Z");
+  const targetDate = new Date(`${date}T12:00:00Z`);
 
   if (targetDate >= limitDate) {
-    throw new Error("A partir de 28/02/2026, a programação desta data não pode ser zerada (Histórico Protegido).");
+    throw new Error("A partir de Março de 2026, a programação desta data não pode ser zerada (Histórico Protegido).");
   }
 
   // Busca dados atuais para o log de auditoria
