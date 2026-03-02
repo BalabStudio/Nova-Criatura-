@@ -24,13 +24,13 @@ interface ScheduleData {
 }
 
 const EMOJI_MAP: Record<string, string> = {
-  oracao: "🙏",
-  louvor: "❤️",
-  dinamica: "🎉",
-  visao: "🌟",
+  oracao: "🙏🏼",
+  louvor: "🔥",
+  dinamica: "🎈",
+  visao: "🍃",
   facilitacao: "📖",
-  oferta: "💝",
-  comunhao: "🍽️",
+  oferta: "📩",
+  comunhao: "🥪🥤",
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -206,7 +206,7 @@ function ProgramacaoContent() {
         {(errorMsg || successMsg) && (
           <div className="card" style={{ marginTop: 12, borderColor: errorMsg ? '#d9534f' : '#28a745' }}>
             <div className="cardBody">
-              <p className="cardTitle" style={{ color: errorMsg ? '#d9534f' : '#28a745' }}>{errorMsg ? "Erro" : "Sucesso"}</p>
+              {successMsg && <p className="cardTitle" style={{ color: '#28a745' }}>Sucesso</p>}
               <p className="cardDesc">{errorMsg || successMsg}</p>
             </div>
           </div>
@@ -244,8 +244,10 @@ function ProgramacaoContent() {
                   </div>
                 ))}
 
-                <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ minWidth: '140px' }}>{EMOJI_MAP.comunhao} {LABEL_MAP.comunhao}:</span>{" "}
+                <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ minWidth: '140px' }}>{LABEL_MAP.comunhao} {EMOJI_MAP.comunhao}</span>
+                  </div>
                   {editMode ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
                       {[0, 1, 2].map(idx => (

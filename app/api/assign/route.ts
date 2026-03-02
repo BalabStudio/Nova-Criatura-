@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 1. Verifica se o membro já tem função nesta data (Prevenção nível aplicação)
+    // 1. Verifica se o membro já tem função nesta data (Prevenção nível aplicação para o sorteio)
     if (await isAssigned(member, isoDate)) {
       return new NextResponse(JSON.stringify({ error: `${member}, você já possui uma função para este dia!` }), {
         status: 409,
@@ -51,12 +51,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
+
     const allCards = getCards();
 
-    // 2. Obtém cards já usados nessa data e histórico do membro
+    // 2. Obtém cards já usados nessa data e histórico do membro (considerando apenas a partir de 28/02/2026 para o Sorteio Justo)
     const [usedCardIds, allMemberAssignments] = await Promise.all([
       getUsedCardIdsForDate(isoDate),
-      supabase.from('assignments').select('card_id').eq('member', member)
+      supabase
+        .from('assignments')
+        .select('card_id')
+        .eq('member', member)
+        .gte('date', '2026-02-28')
     ]);
 
     if (allMemberAssignments.error) {

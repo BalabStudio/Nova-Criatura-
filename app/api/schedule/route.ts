@@ -43,7 +43,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const isoDate = dateParam.match(/^\d{4}-\d{2}-\d{2}$/) ? dateParam : new Date(dateParam).toISOString().slice(0, 10);
 
     const dateObj = new Date(isoDate + "T12:00:00Z"); // Use noon to avoid day shifts
-    const weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const weekdayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
     const weekday = weekdayNames[dateObj.getUTCDay()];
 
     // 1. Busca os dados reais/vivos

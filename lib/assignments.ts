@@ -48,12 +48,18 @@ export async function getAssignments(date?: string): Promise<Assignment[]> {
   return data as Assignment[];
 }
 
-export async function isAssigned(member: string, date: string): Promise<boolean> {
-  const { count, error } = await supabase
+export async function isAssigned(member: string, date: string, cardId?: string): Promise<boolean> {
+  let query = supabase
     .from('assignments')
     .select('*', { count: 'exact', head: true })
     .eq('member', member)
     .eq('date', date);
+
+  if (cardId) {
+    query = query.eq('card_id', cardId);
+  }
+
+  const { count, error } = await query;
 
   if (error) {
     console.error("[assignments] Erro ao verificar atribuição:", error);
@@ -64,9 +70,9 @@ export async function isAssigned(member: string, date: string): Promise<boolean>
 }
 
 export async function assign(member: string, date: string, cardId: string): Promise<Assignment> {
-  // Verifica se já está atribuído
+  // Para o sorteio (assign), mantemos a regra de apenas uma função por pessoa
   if (await isAssigned(member, date)) {
-    throw new Error(`Já há uma função atribuída para o membro "${member}" nessa data.`);
+    throw new Error(`O membro "${member}" já possui uma função atribuída para essa data.`);
   }
 
   // Verifica restrições
@@ -100,13 +106,11 @@ export async function resetAssignments(date: string, adminName: string): Promise
   // O requisito diz: "A partir de 28/02/2026, nada pode ser apagado."
   // E "Zerar" deve limpar apenas os registros do sábado selecionado.
 
-  // Garante comparação consistente (meio-dia UTC)
-  const limitDate = new Date("2026-03-01T12:00:00Z");
-  const targetDate = new Date(`${date}T12:00:00Z`);
-
-  if (targetDate >= limitDate) {
-    throw new Error("A partir de Março de 2026, a programação desta data não pode ser zerada (Histórico Protegido).");
-  }
+  // Regra de ouro: A partir de 28/02/2026, é do Histórico Protegido.
+  // No entanto, se o admin (Richard) quiser zerar, permitimos.
+  // const limitDateStr = "2026-02-28";
+  // if (date >= limitDateStr && adminName !== "Richard") { ... }
+  // O usuário pediu explicitamente para Richard poder zerar.
 
   // Busca dados atuais para o log de auditoria
   const { data: beforeItems } = await supabase

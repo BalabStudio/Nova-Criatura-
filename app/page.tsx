@@ -101,7 +101,11 @@ export default function Page() {
               className="btn"
               style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600, backgroundColor: '#0070f3' }}
               onClick={() => {
-                router.push(`/programacao?edit=true&date=${selectedDate}`);
+                if (password === "novacriatura01") {
+                  router.push(`/programacao?edit=true&date=${selectedDate}`);
+                } else {
+                  setErrorMsg("Senha de admin incorreta para acessar a edição.");
+                }
               }}
             >
               Editar Programação
@@ -139,6 +143,11 @@ export default function Page() {
             setSelectedDate(date);
             setAssignment(null);
             setErrorMsg(null);
+            // Verifica se é sábado para orientar o usuário
+            const day = new Date(date + "T12:00:00Z").getDay();
+            if (day !== 6) {
+              setErrorMsg("Nota: Geralmente as células são aos Sábados. Você selecionou um dia diferente.");
+            }
           }}
         />
 
@@ -179,7 +188,6 @@ export default function Page() {
       {errorMsg && (
         <div className="card" style={{ marginTop: 12 }}>
           <div className="cardBody">
-            <p className="cardTitle">Erro</p>
             <p className="cardDesc">{errorMsg}</p>
           </div>
         </div>
