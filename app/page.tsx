@@ -44,24 +44,60 @@ export default function Page() {
     if (cardRef.current === null) return;
     setLoading(true);
     try {
-      // Pequeno delay para garantir que o DOM está estável e imagens renderizadas
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Função para converter imagem em Data URL (Base64)
+      // Essencial para Safari/iOS renderizar o card completo
+      const toDataURL = (url: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              resolve(canvas.toDataURL('image/png'));
+            } else {
+              reject(new Error('Canvas context failed'));
+            }
+          };
+          img.onerror = reject;
+          img.src = url;
+        });
+      };
+
+      // Preparação: Converte todas as imagens para Base64 antes da captura
+      const images = cardRef.current.querySelectorAll('img');
+      const originalSrcs: string[] = [];
+      for (let i = 0; i < images.length; i++) {
+        originalSrcs.push(images[i].src);
+        try {
+          const b64 = await toDataURL(images[i].src);
+          images[i].src = b64;
+        } catch (e) {
+          console.warn('Fallback: image to dataUrl failed', e);
+        }
+      }
+
+      // Pequeno delay para o Safari registrar a troca de source
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true, // Garante que as imagens não venham de cache bugado
+        cacheBust: false, // Usando Base64 não precisa de cacheBust
         backgroundColor: '#ffffff',
-        pixelRatio: 2,
+        pixelRatio: 2.5, // Ultra nítido
         style: {
-          borderRadius: '14px',
+          borderRadius: '0px', // Evita artefatos nas bordas na captura
           margin: '0',
           padding: '0',
           transform: 'scale(1)',
-          background: '#ffffff',
-          // Garante que o texto fique legível e com cores corretas
-          WebkitFontSmoothing: 'antialiased',
-          MozOsxFontSmoothing: 'grayscale',
+          background: '#ffffff'
         } as any,
       });
+
+      // Restaura os links originais
+      images.forEach((img, i) => img.src = originalSrcs[i]);
 
       const link = document.createElement('a');
       link.download = `card-${assignment?.assignment.member}-${assignment?.assignment.date}.png`.toLowerCase();
@@ -71,6 +107,7 @@ export default function Page() {
       document.body.removeChild(link);
     } catch (err) {
       console.error('Erro ao baixar card:', err);
+      setErrorMsg("Erro ao processar imagem no iPhone. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -269,7 +306,7 @@ export default function Page() {
             animation: 'fadeIn 0.4s ease-out' 
           }}
         >
-          <div className="cardMedia" style={{ backgroundColor: '#ffffff' }}>
+          <div className="cardMedia" style={{ backgroundColor: '#ffffff', height: '260px', overflow: 'hidden' }}>
             <img
               src={assignment.card.image || "/placeholder.svg"}
               alt={assignment.card.title}
@@ -277,25 +314,46 @@ export default function Page() {
                 width: '100%',
                 height: '100%',
                 display: 'block',
-                objectFit: 'contain',
+                objectFit: 'cover', // Preenche todo o topo do card para um visual mais premium
                 background: '#ffffff'
               }}
             />
           </div>
-          <div className="cardBody" style={{ backgroundColor: '#ffffff' }}>
-            <h2 className="cardTitle" style={{ color: '#0f1419' }}>{assignment.card.title}</h2>
-            {assignment.card.subtitle && (
-              <p className="cardSub" style={{ color: '#555555', marginTop: '4px' }}>{assignment.card.subtitle}</p>
-            )}
+          <div className="cardBody" style={{ backgroundColor: '#ffffff', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h2 className="cardTitle" style={{ color: '#0c228f', fontSize: '24px', fontWeight: 800, margin: 0 }}>
+                  {assignment.card.title}
+                </h2>
+                {assignment.card.subtitle && (
+                  <p style={{ color: '#555555', fontSize: '14px', fontWeight: 600, margin: '4px 0 0' }}>
+                    {assignment.card.subtitle}
+                  </p>
+                )}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: '#0c228f', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Nova Criatura
+                </span>
+              </div>
+            </div>
+
             {assignment.card.description && (
-              <p className="cardDesc" style={{ color: '#444444', marginTop: '12px' }}>{assignment.card.description}</p>
+              <p style={{ color: '#333333', marginTop: '20px', fontSize: '15px', lineHeight: '1.6', fontWeight: 400 }}>
+                {assignment.card.description}
+              </p>
             )}
-            <p className="cardSub" style={{ marginTop: 16, color: '#0f1419' }}>
-              <strong>Data:</strong> {assignment.assignment.date}
-            </p>
-            <p className="cardSub" style={{ color: '#0f1419' }}>
-              <strong>Participante:</strong> {assignment.assignment.member}
-            </p>
+
+            <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '11px', color: '#888', textTransform: 'uppercase' }}>Data</p>
+                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 700, color: '#0f1419' }}>{assignment.assignment.date}</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ margin: 0, fontSize: '11px', color: '#888', textTransform: 'uppercase' }}>Participante</p>
+                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 700, color: '#0f1419' }}>{assignment.assignment.member}</p>
+              </div>
+            </div>
           </div>
         </article>
       )}
