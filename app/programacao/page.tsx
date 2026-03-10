@@ -81,70 +81,30 @@ function ProgramacaoContent() {
     if (scheduleRef.current === null) return;
     setLoading(true);
     try {
-      // Pequeno delay para garantir que o DOM está estável e imagens renderizadas
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Função para converter imagem em Data URL (Base64) - Essencial para Safari
-      const toDataURL = (url: string): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'Anonymous';
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              resolve(canvas.toDataURL('image/png'));
-            } else {
-              reject(new Error('Canvas failure'));
-            }
-          };
-          img.onerror = reject;
-          img.src = url;
-        });
-      };
-
-      // Converte imagens do card para Base64 antes da captura
-      const images = scheduleRef.current.querySelectorAll('img');
-      const originalSrcs: string[] = [];
-      for (let i = 0; i < images.length; i++) {
-        originalSrcs.push(images[i].src);
-        try {
-          const b64 = await toDataURL(images[i].src);
-          images[i].src = b64;
-        } catch (e) {
-          console.warn('Fallback base64 failed', e);
-        }
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 600));
 
       const dataUrl = await toPng(scheduleRef.current, {
-        cacheBust: false,
+        cacheBust: true,
         backgroundColor: '#ffffff',
-        pixelRatio: 2.5,
+        pixelRatio: 2,
         style: {
-          borderRadius: '0px',
+          borderRadius: '14px',
           margin: '0',
-          padding: '24px',
+          padding: '20px',
           transform: 'scale(1)',
-          background: '#ffffff',
-          WebkitFontSmoothing: 'antialiased',
-          MozOsxFontSmoothing: 'grayscale',
+          background: '#ffffff'
         } as any,
       });
 
-      // Restaura srcs
-      images.forEach((img, i) => img.src = originalSrcs[i]);
-
+      const fileName = `programacao-${selectedDate || 'geral'}.png`.toLowerCase();
       const link = document.createElement('a');
-      link.download = `programacao-${selectedDate || 'geral'}.png`.toLowerCase();
+      link.download = fileName;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
     } catch (err) {
       console.error('Erro ao baixar programação:', err);
     } finally {
