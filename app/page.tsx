@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import { toPng } from "html-to-image";
 import { Calendar } from "@/components/calendar";
 import members from "@/data/members.json";
+import cards from "@/data/cards.json";
 
 type CardItem = {
   id: string;
@@ -31,23 +32,43 @@ export default function Page() {
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const cardRef = useRef<HTMLElement>(null);
 
+  // Pre-load de imagens para que o download seja instantâneo e sem bugs
+  useEffect(() => {
+    cards.forEach((card) => {
+      const img = new Image();
+      img.src = card.image;
+    });
+  }, []);
+
   const downloadCard = async () => {
     if (cardRef.current === null) return;
+    setLoading(true);
     try {
-      // Pequeno delay para garantir renderização
+      // Com as imagens pré-carregadas, o delay pode ser menor
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        backgroundColor: '#fff',
+        cacheBust: false, // Imagens já estão no cache
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
         style: {
-          borderRadius: '0px' // Mantém bordas retas na imagem salva se desejar
-        }
+          borderRadius: '14px',
+          margin: '0',
+          padding: '0',
+          transform: 'scale(1)',
+          background: '#ffffff'
+        },
+        skipFonts: true, // Usa fontes do sistema para ser mais rápido
       });
+
       const link = document.createElement('a');
-      link.download = `card-${assignment?.assignment.member}-${assignment?.assignment.date}.png`;
+      link.download = `card-${assignment?.assignment.member}-${assignment?.assignment.date}.png`.toLowerCase();
       link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Erro ao baixar card:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -224,27 +245,52 @@ export default function Page() {
         </div>
       )}
 
+      {loading && !assignment && (
+        <div className="card" style={{ marginTop: 12, padding: '20px', textAlign: 'center', backgroundColor: '#ffffff', border: '1px solid #e1eaef' }}>
+          <div className="skeleton-media" style={{ width: '100%', aspectRatio: '16/10', borderRadius: '8px', background: '#f5f5f5', marginBottom: '16px' }}></div>
+          <div className="skeleton-text" style={{ height: '20px', width: '60%', background: '#f5f5f5', borderRadius: '4px', margin: '0 auto 8px' }}></div>
+          <div className="skeleton-text" style={{ height: '14px', width: '80%', background: '#f5f5f5', borderRadius: '4px', margin: '0 auto' }}></div>
+          <p style={{ marginTop: '16px', fontSize: '13px', color: '#888' }}>Sorteando sua função...</p>
+        </div>
+      )}
+
       {assignment && (
-        <article ref={cardRef} className="card" style={{ marginTop: 12 }}>
-          <img
-            className="cardMedia"
-            src={assignment.card.image || "/placeholder.svg"}
-            alt={assignment.card.title}
-            style={{ objectFit: 'contain', background: '#f5f5f5' }}
-          />
-          <div className="cardBody">
-            <h2 className="cardTitle">{assignment.card.title}</h2>
+        <article 
+          ref={cardRef} 
+          className="card" 
+          style={{ 
+            marginTop: 12, 
+            backgroundColor: '#ffffff', 
+            border: '1px solid #e1eaef',
+            animation: 'fadeIn 0.4s ease-out' 
+          }}
+        >
+          <div className="cardMedia" style={{ backgroundColor: '#ffffff' }}>
+            <img
+              src={assignment.card.image || "/placeholder.svg"}
+              alt={assignment.card.title}
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'block',
+                objectFit: 'contain',
+                background: '#ffffff'
+              }}
+            />
+          </div>
+          <div className="cardBody" style={{ backgroundColor: '#ffffff' }}>
+            <h2 className="cardTitle" style={{ color: '#0f1419' }}>{assignment.card.title}</h2>
             {assignment.card.subtitle && (
-              <p className="cardSub">{assignment.card.subtitle}</p>
+              <p className="cardSub" style={{ color: '#555555', marginTop: '4px' }}>{assignment.card.subtitle}</p>
             )}
             {assignment.card.description && (
-              <p className="cardDesc">{assignment.card.description}</p>
+              <p className="cardDesc" style={{ color: '#444444', marginTop: '12px' }}>{assignment.card.description}</p>
             )}
-            <p className="cardSub" style={{ marginTop: 8 }}>
-              Data: {assignment.assignment.date}
+            <p className="cardSub" style={{ marginTop: 16, color: '#0f1419' }}>
+              <strong>Data:</strong> {assignment.assignment.date}
             </p>
-            <p className="cardSub">
-              Participante: {assignment.assignment.member}
+            <p className="cardSub" style={{ color: '#0f1419' }}>
+              <strong>Participante:</strong> {assignment.assignment.member}
             </p>
           </div>
         </article>

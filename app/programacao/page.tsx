@@ -7,6 +7,7 @@ import { Download } from "lucide-react";
 import { toPng } from "html-to-image";
 import { Calendar } from "@/components/calendar";
 import members from "@/data/members.json";
+import cards from "@/data/cards.json";
 
 interface ScheduleData {
   date: string;
@@ -68,22 +69,42 @@ function ProgramacaoContent() {
   const [editMode, setEditMode] = useState(searchParams.get("edit") === "true");
   const scheduleRef = useRef<HTMLElement>(null);
 
+  // Pre-load de imagens para que o download do Card de Programação seja rápido
+  useEffect(() => {
+    cards.forEach((card) => {
+      const img = new Image();
+      img.src = card.image;
+    });
+  }, []);
+
   const downloadScheduleCard = async () => {
     if (scheduleRef.current === null) return;
+    setLoading(true);
     try {
+      // Com imagens pré-carregadas, o delay pode ser menor para ser mais fluido
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const dataUrl = await toPng(scheduleRef.current, {
-        cacheBust: true,
-        backgroundColor: '#fff',
+        cacheBust: false,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
         style: {
-          padding: '20px', // Adiciona um respiro na imagem
-        }
+          borderRadius: '14px',
+          margin: '0',
+          padding: '20px',
+          transform: 'scale(1)',
+          background: '#ffffff'
+        },
+        skipFonts: true,
       });
       const link = document.createElement('a');
-      link.download = `programacao-${selectedDate || 'geral'}.png`;
+      link.download = `programacao-${selectedDate || 'geral'}.png`.toLowerCase();
       link.href = dataUrl;
       link.click();
     } catch (err) {
       console.error('Erro ao baixar programação:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -198,7 +219,7 @@ function ProgramacaoContent() {
   };
 
   const renderMember = (name?: string) => {
-    return name ? <span style={{ fontWeight: 600 }}>{name}</span> : <span style={{ color: "rgba(15, 20, 25, 0.4)" }}>A definir</span>;
+    return name ? <span style={{ fontWeight: 600, color: '#0f1419' }}>{name}</span> : <span style={{ color: "#888888" }}>A definir</span>;
   };
 
   return (
@@ -235,10 +256,10 @@ function ProgramacaoContent() {
         )}
 
         {schedule && (
-          <article ref={scheduleRef} className="card" style={{ marginTop: 12 }}>
-            <div className="cardBody">
+          <article ref={scheduleRef} className="card" style={{ marginTop: 12, backgroundColor: '#ffffff', border: '1px solid #e1eaef' }}>
+            <div className="cardBody" style={{ backgroundColor: '#ffffff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 className="cardTitle">
+                <h2 className="cardTitle" style={{ color: '#0f1419' }}>
                   Nova Criatura — {schedule.weekday} {formatDate(schedule.date)} às {schedule.horario}
                 </h2>
                 {schedule.version && (
@@ -249,7 +270,7 @@ function ProgramacaoContent() {
               <div style={{ marginTop: 14, lineHeight: 1.8 }}>
                 {["oracao", "louvor", "dinamica", "visao", "facilitacao", "oferta"].map((role) => (
                   <div key={role} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ minWidth: '140px' }}>{EMOJI_MAP[role]} {LABEL_MAP[role]}:</span>
+                    <span style={{ minWidth: '140px', color: '#0f1419' }}>{EMOJI_MAP[role]} {LABEL_MAP[role]}:</span>
                     {editMode ? (
                       <select
                         className="cardSub"
@@ -268,7 +289,7 @@ function ProgramacaoContent() {
 
                 <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ minWidth: '140px' }}>{LABEL_MAP.comunhao} {EMOJI_MAP.comunhao}</span>
+                    <span style={{ minWidth: '140px', color: '#0f1419' }}>{LABEL_MAP.comunhao} {EMOJI_MAP.comunhao}</span>
                   </div>
                   {editMode ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
@@ -363,10 +384,18 @@ function ProgramacaoContent() {
         )}
 
         {!schedule && !errorMsg && selectedDate && loading && (
-          <div className="card" style={{ marginTop: 12 }}>
-            <div className="cardBody">
-              <p className="cardTitle">Carregando...</p>
+          <div className="card" style={{ marginTop: 12, padding: '16px', backgroundColor: '#ffffff', border: '1px solid #e1eaef' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div className="skeleton-text" style={{ height: '24px', width: '70%', borderRadius: '4px' }}></div>
+              <div className="skeleton-text" style={{ height: '14px', width: '10%', borderRadius: '4px' }}></div>
             </div>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center' }}>
+                <div className="skeleton-text" style={{ height: '16px', width: '30%', borderRadius: '4px' }}></div>
+                <div className="skeleton-text" style={{ height: '16px', width: '50%', borderRadius: '4px' }}></div>
+              </div>
+            ))}
+            <p style={{ textAlign: 'center', fontSize: '12px', color: '#999', marginTop: '10px' }}>Buscando programação...</p>
           </div>
         )}
       </div>
@@ -378,9 +407,17 @@ export default function ProgramacaoPage() {
   return (
     <Suspense fallback={
       <main className="container">
-        <header className="header" style={{ justifyContent: 'center' }}>
-          <p className="subtitle">Carregando...</p>
+        <header className="header" style={{ marginBottom: '20px' }}>
+          <div style={{ flex: 1 }}>
+            <div className="skeleton-text" style={{ height: '28px', width: '50%', borderRadius: '6px' }}></div>
+            <div className="skeleton-text" style={{ height: '16px', width: '80%', borderRadius: '4px', marginTop: '8px' }}></div>
+          </div>
         </header>
+        <div className="grid">
+          <div className="calendar" style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <p style={{ color: '#ccc', fontSize: '13px' }}>Preparando calendário...</p>
+          </div>
+        </div>
       </main>
     }>
       <ProgramacaoContent />
