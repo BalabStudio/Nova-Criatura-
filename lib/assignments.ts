@@ -70,8 +70,8 @@ export async function isAssigned(member: string, date: string, cardId?: string):
 }
 
 export async function assign(member: string, date: string, cardId: string): Promise<Assignment> {
-  // Para o sorteio (assign), mantemos a regra de apenas uma função por pessoa
-  if (await isAssigned(member, date)) {
+  // No sorteio (assign), permitimos que o Richard tenha mais de uma função (ex: fixo + sorteada)
+  if (member !== "Richard" && await isAssigned(member, date)) {
     throw new Error(`O membro "${member}" já possui uma função atribuída para essa data.`);
   }
 
@@ -155,24 +155,21 @@ export async function getUsedCardIdsForDate(date: string): Promise<string[]> {
   return data.map(d => d.card_id);
 }
 
-// Retorna a última função atribuída a um membro (ou null)
-export async function getLastAssignmentForMember(member: string): Promise<Assignment | null> {
+// Retorna as últimas N funções atribuídas a um membro
+export async function getLastAssignmentsForMember(member: string, limit: number = 1): Promise<Assignment[]> {
   const { data, error } = await supabase
     .from('assignments')
     .select('date, member, cardId:card_id')
     .eq('member', member)
     .order('date', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(limit);
 
   if (error) {
-    // No data found counts as an error for single()
-    if (error.code === 'PGRST116') return null;
-    console.error("[assignments] Erro ao buscar último sorteio:", error);
-    return null;
+    console.error("[assignments] Erro ao buscar últimos sorteios:", error);
+    return [];
   }
 
-  return data as Assignment;
+  return data as Assignment[];
 }
 
 // --- Snapshots e Auditoria ---

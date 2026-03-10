@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCards, pickRandomCard } from "@/lib/cards";
-import { getAssignments, assign, isAssigned, getUsedCardIdsForDate, getLastAssignmentForMember, getAllowedCards } from "@/lib/assignments";
+import { getAssignments, assign, isAssigned, getUsedCardIdsForDate, getLastAssignmentsForMember, getAllowedCards } from "@/lib/assignments";
 import { supabase } from "@/lib/supabase";
 import members from "@/data/members.json";
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // 1. Verifica se o membro já tem função nesta data (Prevenção nível aplicação para o sorteio)
-    if (await isAssigned(member, isoDate)) {
+    if (member !== "Richard" && await isAssigned(member, isoDate)) {
       return new NextResponse(JSON.stringify({ error: `${member}, você já possui uma função para este dia!` }), {
         status: 409,
         headers: { "Content-Type": "application/json" },
@@ -104,10 +104,13 @@ export async function POST(req: NextRequest) {
       if (frequency[id] !== undefined) frequency[id]++;
     });
 
-    const lastAssignment = await getLastAssignmentForMember(member);
+    const lastTwoAssignments = await getLastAssignmentsForMember(member, 2);
+    const lastTwoCardIds = lastTwoAssignments.map(a => a.cardId);
 
-    // Tenta evitar repetição da semana passada
-    let rotationCards = physicallyAvailableCards.filter(c => !lastAssignment || c.id !== lastAssignment.cardId);
+    // Tenta evitar repetição das últimas 2 funções (Regra de 2 semanas)
+    let rotationCards = physicallyAvailableCards.filter(c => !lastTwoCardIds.includes(c.id));
+    
+    // Fallback: se sobrar nada (ex: pessoa só pode fazer 3 coisas e já fez 2 ultimamente), volta pro que está fisicamente disponível
     if (rotationCards.length === 0) rotationCards = physicallyAvailableCards;
 
     // Escolhe os cards menos realizados pelo membro

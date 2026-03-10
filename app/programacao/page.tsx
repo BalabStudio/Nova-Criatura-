@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Download } from "lucide-react";
+import { toPng } from "html-to-image";
 import { Calendar } from "@/components/calendar";
 import members from "@/data/members.json";
 
@@ -64,6 +66,26 @@ function ProgramacaoContent() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [editMode, setEditMode] = useState(searchParams.get("edit") === "true");
+  const scheduleRef = useRef<HTMLElement>(null);
+
+  const downloadScheduleCard = async () => {
+    if (scheduleRef.current === null) return;
+    try {
+      const dataUrl = await toPng(scheduleRef.current, {
+        cacheBust: true,
+        backgroundColor: '#fff',
+        style: {
+          padding: '20px', // Adiciona um respiro na imagem
+        }
+      });
+      const link = document.createElement('a');
+      link.download = `programacao-${selectedDate || 'geral'}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao baixar programação:', err);
+    }
+  };
 
   const handleSelectDate = useCallback(async (date: string) => {
     setSelectedDate(date);
@@ -213,7 +235,7 @@ function ProgramacaoContent() {
         )}
 
         {schedule && (
-          <article className="card" style={{ marginTop: 12 }}>
+          <article ref={scheduleRef} className="card" style={{ marginTop: 12 }}>
             <div className="cardBody">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 className="cardTitle">
@@ -320,6 +342,24 @@ function ProgramacaoContent() {
               </div>
             </div>
           </article>
+        )}
+
+        {schedule && !editMode && (
+          <button
+            className="btn"
+            style={{
+              marginTop: 12,
+              backgroundColor: '#0c228f',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+            onClick={downloadScheduleCard}
+          >
+            <Download size={18} />
+            <span>Card</span>
+          </button>
         )}
 
         {!schedule && !errorMsg && selectedDate && loading && (

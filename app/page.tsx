@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Download } from "lucide-react";
+import { toPng } from "html-to-image";
 import { Calendar } from "@/components/calendar";
 import members from "@/data/members.json";
 
@@ -27,6 +29,27 @@ export default function Page() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const cardRef = useRef<HTMLElement>(null);
+
+  const downloadCard = async () => {
+    if (cardRef.current === null) return;
+    try {
+      // Pequeno delay para garantir renderização
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        backgroundColor: '#fff',
+        style: {
+          borderRadius: '0px' // Mantém bordas retas na imagem salva se desejar
+        }
+      });
+      const link = document.createElement('a');
+      link.download = `card-${assignment?.assignment.member}-${assignment?.assignment.date}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Erro ao baixar card:', err);
+    }
+  };
 
   const pickFunction = useCallback(async () => {
     if (!selectedMember || !selectedDate) return;
@@ -202,7 +225,7 @@ export default function Page() {
       )}
 
       {assignment && (
-        <article className="card" style={{ marginTop: 12 }}>
+        <article ref={cardRef} className="card" style={{ marginTop: 12 }}>
           <img
             className="cardMedia"
             src={assignment.card.image || "/placeholder.svg"}
@@ -225,6 +248,24 @@ export default function Page() {
             </p>
           </div>
         </article>
+      )}
+
+      {assignment && (
+        <button
+          className="btn"
+          style={{
+            marginTop: 12,
+            backgroundColor: '#0c228f',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+          onClick={downloadCard}
+        >
+          <Download size={18} />
+          <span>Card</span>
+        </button>
       )}
     </main>
   );
