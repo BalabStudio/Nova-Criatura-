@@ -44,11 +44,11 @@ export default function Page() {
     if (cardRef.current === null) return;
     setLoading(true);
     try {
-      // Com as imagens pré-carregadas, o delay pode ser menor
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Pequeno delay para garantir que o DOM está estável e imagens renderizadas
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const dataUrl = await toPng(cardRef.current, {
-        cacheBust: false, // Imagens já estão no cache
+        cacheBust: true, // Garante que as imagens não venham de cache bugado
         backgroundColor: '#ffffff',
         pixelRatio: 2,
         style: {
@@ -56,15 +56,19 @@ export default function Page() {
           margin: '0',
           padding: '0',
           transform: 'scale(1)',
-          background: '#ffffff'
-        },
-        skipFonts: true, // Usa fontes do sistema para ser mais rápido
+          background: '#ffffff',
+          // Garante que o texto fique legível e com cores corretas
+          WebkitFontSmoothing: 'antialiased',
+          MozOsxFontSmoothing: 'grayscale',
+        } as any,
       });
 
       const link = document.createElement('a');
       link.download = `card-${assignment?.assignment.member}-${assignment?.assignment.date}.png`.toLowerCase();
       link.href = dataUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error('Erro ao baixar card:', err);
     } finally {

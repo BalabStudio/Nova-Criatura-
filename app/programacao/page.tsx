@@ -81,26 +81,30 @@ function ProgramacaoContent() {
     if (scheduleRef.current === null) return;
     setLoading(true);
     try {
-      // Com imagens pré-carregadas, o delay pode ser menor para ser mais fluido
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Pequeno delay para garantir que o DOM está estável e imagens renderizadas
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const dataUrl = await toPng(scheduleRef.current, {
-        cacheBust: false,
+        cacheBust: true, // Evita cache antigo no mobile
         backgroundColor: '#ffffff',
         pixelRatio: 2,
         style: {
           borderRadius: '14px',
           margin: '0',
-          padding: '20px',
+          padding: '24px', // Mais respiro para o card de programação
           transform: 'scale(1)',
-          background: '#ffffff'
-        },
-        skipFonts: true,
+          background: '#ffffff',
+          WebkitFontSmoothing: 'antialiased',
+          MozOsxFontSmoothing: 'grayscale',
+        } as any,
       });
+
       const link = document.createElement('a');
       link.download = `programacao-${selectedDate || 'geral'}.png`.toLowerCase();
       link.href = dataUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error('Erro ao baixar programação:', err);
     } finally {
