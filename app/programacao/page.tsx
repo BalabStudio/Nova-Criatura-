@@ -4,9 +4,8 @@ import { useCallback, useEffect, useState, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
-import { toPng } from "html-to-image";
 import { Calendar } from "@/components/calendar";
-import members from "@/data/members.json";
+import staticMembers from "@/data/members.json";
 import cards from "@/data/cards.json";
 
 interface ScheduleData {
@@ -67,6 +66,10 @@ function ProgramacaoContent() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [editMode, setEditMode] = useState(searchParams.get("edit") === "true");
+  const [membersList, setMembersList] = useState<string[]>(staticMembers);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
+  const [addMemberMsg, setAddMemberMsg] = useState<string | null>(null);
   const scheduleRef = useRef<HTMLElement>(null);
 
   // Pre-load de imagens para que o download do Card de Programação seja rápido
@@ -77,12 +80,56 @@ function ProgramacaoContent() {
     });
   }, []);
 
+  // Busca membros ativos do Supabase
+  useEffect(() => {
+    fetch("/api/members")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.members?.length > 0) setMembersList(data.members);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleAddMember = async () => {
+    const trimmed = newMemberName.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setAddMemberMsg("Nome precisa ter pelo menos 2 caracteres.");
+      return;
+    }
+    if (!password) {
+      setAddMemberMsg("Digite a senha de admin antes de adicionar um membro.");
+      return;
+    }
+    setAddingMember(true);
+    setAddMemberMsg(null);
+    try {
+      const res = await fetch("/api/members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAddMemberMsg(data.error || "Erro ao adicionar membro.");
+        return;
+      }
+      setMembersList((prev) => [...prev, trimmed].sort((a, b) => a.localeCompare(b)));
+      setNewMemberName("");
+      setAddMemberMsg(`✓ ${trimmed} adicionado com sucesso!`);
+    } catch {
+      setAddMemberMsg("Falha de conexão ao adicionar membro.");
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
   const downloadScheduleCard = async () => {
     if (scheduleRef.current === null) return;
     setLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 600));
 
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(scheduleRef.current, {
         cacheBust: true,
         backgroundColor: '#ffffff',
@@ -283,7 +330,7 @@ function ProgramacaoContent() {
                         style={{ padding: '4px', fontSize: '14px', flex: 1 }}
                       >
                         <option value="">A definir</option>
-                        {members.map(m => <option key={m} value={m}>{m}</option>)}
+                        {membersList.map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
                     ) : (
                       renderMember(schedule.funcoes[role as keyof typeof schedule.funcoes] as string)
@@ -306,7 +353,7 @@ function ProgramacaoContent() {
                           style={{ padding: '4px', fontSize: '14px' }}
                         >
                           <option value="">A definir</option>
-                          {members.map(m => <option key={m} value={m}>{m}</option>)}
+                          {membersList.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
                       ))}
                     </div>
@@ -338,6 +385,36 @@ function ProgramacaoContent() {
 
                 {editMode && (
                   <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 16 }}>
+                    <label className="cardTitle" style={{ fontSize: '14px' }}>Adicionar Novo Membro</label>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: 8, marginBottom: 4 }}>
+                      <input
+                        type="text"
+                        className="cardSub"
+                        value={newMemberName}
+                        onChange={(e) => { setNewMemberName(e.target.value); setAddMemberMsg(null); }}
+                        placeholder="Nome do membro"
+                        style={{ flex: 1, padding: '8px', fontSize: '14px' }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddMember(); }}
+                      />
+                      <button
+                        className="btn"
+                        onClick={handleAddMember}
+                        disabled={addingMember || !newMemberName.trim()}
+                        style={{ marginBottom: 0, width: 'auto', padding: '8px 14px', fontSize: '13px', whiteSpace: 'nowrap' }}
+                      >
+                        {addingMember ? "..." : "Adicionar"}
+                      </button>
+                    </div>
+                    {addMemberMsg && (
+                      <p style={{ fontSize: '12px', color: addMemberMsg.startsWith('✓') ? '#28a745' : '#d9534f', marginBottom: 12 }}>
+                        {addMemberMsg}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {editMode && (
+                  <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16 }}>
                     <label className="cardTitle" style={{ fontSize: '14px' }}>Senha de Admin para Salvar</label>
                     <input
                       type="password"

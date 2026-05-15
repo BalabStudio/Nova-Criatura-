@@ -4,9 +4,8 @@ import { useCallback, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
-import { toPng } from "html-to-image";
 import { Calendar } from "@/components/calendar";
-import members from "@/data/members.json";
+import staticMembers from "@/data/members.json";
 import cards from "@/data/cards.json";
 
 type CardItem = {
@@ -30,21 +29,23 @@ export default function Page() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [membersList, setMembersList] = useState<string[]>(staticMembers);
   const cardRef = useRef<HTMLElement>(null);
 
-  // Pre-load de imagens para que o download seja instantâneo e sem bugs
   useEffect(() => {
-    cards.forEach((card) => {
-      const img = new Image();
-      img.src = card.image;
-    });
+    fetch("/api/members")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.members?.length > 0) setMembersList(data.members);
+      })
+      .catch(() => {});
   }, []);
 
   const downloadCard = async () => {
     if (cardRef.current === null) return;
     setLoading(true);
     try {
-      // Delay para garantir que o Chrome/Safari mobile processem o layout
+      const { toPng } = await import("html-to-image");
       await new Promise(resolve => setTimeout(resolve, 600));
 
       const dataUrl = await toPng(cardRef.current, {
@@ -176,7 +177,7 @@ export default function Page() {
           }}
         >
           <option value="">Selecione...</option>
-          {members.map((name) => (
+          {membersList.map((name) => (
             <option key={name} value={name}>
               {name}
             </option>

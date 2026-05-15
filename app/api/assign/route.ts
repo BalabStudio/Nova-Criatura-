@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCards, pickRandomCard } from "@/lib/cards";
-import { getAssignments, assign, isAssigned, getUsedCardIdsForDate, getLastAssignmentsForMember, getAllowedCards } from "@/lib/assignments";
+import { getAssignments, assign, isAssigned, getUsedCardIdsForDate, getLastAssignmentsForMember } from "@/lib/assignments";
 import { supabase } from "@/lib/supabase";
-import members from "@/data/members.json";
 
 export async function POST(req: NextRequest) {
   let body: { member?: string; date?: string };
@@ -24,13 +23,22 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Validação: Membro deve existir na lista
-  if (!members.includes(member)) {
+  // Validação: Membro deve existir na tabela members do Supabase
+  const { data: memberRow, error: memberErr } = await supabase
+    .from("members")
+    .select("name, restrictions")
+    .eq("name", member)
+    .eq("active", true)
+    .single();
+
+  if (memberErr || !memberRow) {
     return new NextResponse(JSON.stringify({ error: "Participante não encontrado na lista oficial." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  const memberRestrictions: string[] = memberRow.restrictions || [];
 
   // Validação de data robusta (YYYY-MM-DD)
   const isoDate = date.match(/^\d{4}-\d{2}-\d{2}$/) ? date : new Date(date).toISOString().slice(0, 10);
@@ -72,12 +80,11 @@ export async function POST(req: NextRequest) {
     const dayAssignments = await getAssignments(isoDate);
     const lancheCountForDate = dayAssignments.filter((a) => a.cardId === "lanche").length;
 
-    // 3. Aplica restrições de membro (Ex: Ana/Hiris)
-    const allowedCardIds = getAllowedCards(member);
+    // 3. Aplica restrições de membro (via DB)
     let candidateCards = allCards;
 
-    if (allowedCardIds && allowedCardIds.length > 0) {
-      candidateCards = allCards.filter(c => allowedCardIds.includes(c.id));
+    if (memberRestrictions.length > 0) {
+      candidateCards = allCards.filter(c => memberRestrictions.includes(c.id));
     }
 
     // 4. Filtra o que está disponível fisicamente na data
@@ -87,7 +94,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (physicallyAvailableCards.length === 0) {
-      const errorMsg = allowedCardIds.length > 0
+      const errorMsg = memberRestrictions.length > 0
         ? `Nenhuma das funções permitidas para ${member} está disponível nesta data.`
         : "Todas as funções para esta data já foram preenchidas.";
 
@@ -99,7 +106,7 @@ export async function POST(req: NextRequest) {
 
     // 5. Algoritmo de Rotação Justa (Frequência Mínima)
     const frequency: Record<string, number> = {};
-    candidateCards.forEach(c => frequency[c.id] = 0);
+    candidateCards.forEach((c) => (frequency[c.id] = 0));
     memberHistory.forEach((id: string) => {
       if (frequency[id] !== undefined) frequency[id]++;
     });
