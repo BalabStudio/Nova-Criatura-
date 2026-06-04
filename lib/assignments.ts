@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { supabase } from "./supabase";
+import { supabaseAdmin as supabase } from "./supabase";
 
 // Schema para cada sorteio (data ISO, membro e cardId).
 const AssignmentSchema = z.object({
@@ -9,20 +9,6 @@ const AssignmentSchema = z.object({
 });
 
 export type Assignment = z.infer<typeof AssignmentSchema>;
-
-// Restrições por membro: quais cardIds podem sortear
-const MEMBER_RESTRICTIONS: Record<string, string[]> = {
-  "Ana Letícia": ["oracao", "quebra-gelo", "lanche"],
-  "Hiris": ["oracao", "quebra-gelo", "lanche"],
-};
-
-export function getAllowedCards(member: string): string[] {
-  return MEMBER_RESTRICTIONS[member] || [];
-}
-
-export function hasRestriction(member: string): boolean {
-  return !!MEMBER_RESTRICTIONS[member];
-}
 
 export async function getAssignments(date?: string): Promise<Assignment[]> {
   let query = supabase
@@ -70,17 +56,6 @@ export async function isAssigned(member: string, date: string, cardId?: string):
 }
 
 export async function assign(member: string, date: string, cardId: string): Promise<Assignment> {
-  // No sorteio (assign), permitimos que o Richard tenha mais de uma função (ex: fixo + sorteada)
-  if (member !== "Richard" && await isAssigned(member, date)) {
-    throw new Error(`O membro "${member}" já possui uma função atribuída para essa data.`);
-  }
-
-  // Verifica restrições
-  const allowedCards = getAllowedCards(member);
-  if (allowedCards.length > 0 && !allowedCards.includes(cardId)) {
-    throw new Error(`O membro "${member}" não pode sortear a função "${cardId}".`);
-  }
-
   const { data, error } = await supabase
     .from('assignments')
     .insert([{ member, date, card_id: cardId }])
@@ -89,7 +64,7 @@ export async function assign(member: string, date: string, cardId: string): Prom
 
   if (error) {
     console.error("[assignments] Erro ao salvar no Supabase:", error);
-    throw new Error("Falha ao salvar atribuição no banco de dados.");
+    throw error;
   }
 
   return {

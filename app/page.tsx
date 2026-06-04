@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import { Calendar } from "@/components/calendar";
+import { CustomSelect } from "@/components/ui/custom-select";
 import staticMembers from "@/data/members.json";
 import cards from "@/data/cards.json";
 
@@ -46,10 +47,9 @@ export default function Page() {
     setLoading(true);
     try {
       const { toPng } = await import("html-to-image");
-      await new Promise(resolve => setTimeout(resolve, 600));
 
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
+      const options = {
+        cacheBust: false,
         backgroundColor: '#ffffff',
         pixelRatio: 2,
         style: {
@@ -59,7 +59,14 @@ export default function Page() {
           transform: 'scale(1)',
           background: '#ffffff'
         } as any,
-      });
+      };
+
+      // Warmup: força html-to-image a resolver imagens no cache interno.
+      // Necessário no Safari/iOS onde a 1ª chamada não embute imagens corretamente.
+      await toPng(cardRef.current, options).catch(() => {});
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const dataUrl = await toPng(cardRef.current, options);
 
       const fileName = `card-${assignment?.assignment.member}-${assignment?.assignment.date}.png`.toLowerCase();
       const link = document.createElement('a');
@@ -131,11 +138,34 @@ export default function Page() {
   const readyToPick = selectedMember && selectedDate && !assignment;
   const isAdmin = selectedMember === "Richard";
 
+  const handleEditProgramacao = useCallback(async () => {
+    if (!password || !selectedDate) return;
+    setLoading(true);
+    setResetMsg(null);
+    try {
+      const res = await fetch("/api/auth/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setResetMsg(data.error || "Senha incorreta.");
+        return;
+      }
+      router.push(`/programacao?edit=true&date=${selectedDate}`);
+    } catch {
+      setResetMsg("Erro ao verificar senha.");
+    } finally {
+      setLoading(false);
+    }
+  }, [password, selectedDate, router]);
+
   return (
     <main className="container">
       <header className="header">
         <div style={{ flex: 1 }}>
-          <h1 className="title">Programação mais TOP de uma Célula de Todos os Tempos 🔥</h1>
+          <h1 className="title">Paz Church Funções</h1>
           <p className="subtitle">
             Selecione o seu nome e a data da célula, depois clique em "Escolher" para receber sua função.
           </p>
@@ -150,13 +180,8 @@ export default function Page() {
             <button
               className="btn"
               style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600, backgroundColor: '#0070f3' }}
-              onClick={() => {
-                if (password === "novacriatura01") {
-                  router.push(`/programacao?edit=true&date=${selectedDate}`);
-                } else {
-                  setErrorMsg("Senha de admin incorreta para acessar a edição.");
-                }
-              }}
+              onClick={handleEditProgramacao}
+              disabled={!password || loading}
             >
               Editar Programação
             </button>
@@ -165,24 +190,17 @@ export default function Page() {
       </header>
 
       <div className="grid">
-        <label htmlFor="member-select" className="cardTitle">Participante</label>
-        <select
-          id="member-select"
-          className="cardSub"
+        <label className="cardTitle">Participante</label>
+        <CustomSelect
           value={selectedMember}
-          onChange={(e) => {
-            setSelectedMember(e.target.value);
+          onChange={(val) => {
+            setSelectedMember(val);
             setAssignment(null);
             setErrorMsg(null);
           }}
-        >
-          <option value="">Selecione...</option>
-          {membersList.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
+          options={membersList.map((name) => ({ value: name, label: name }))}
+          placeholder="Selecione..."
+        />
 
         <label className="cardTitle" style={{ marginTop: 10 }}>
           Selecione o Dia

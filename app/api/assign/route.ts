@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCards, pickRandomCard } from "@/lib/cards";
 import { getAssignments, assign, isAssigned, getUsedCardIdsForDate, getLastAssignmentsForMember } from "@/lib/assignments";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   let body: { member?: string; date?: string };
@@ -80,12 +80,15 @@ export async function POST(req: NextRequest) {
     const dayAssignments = await getAssignments(isoDate);
     const lancheCountForDate = dayAssignments.filter((a) => a.cardId === "lanche").length;
 
-    // 3. Aplica restrições de membro (via DB)
-    let candidateCards = allCards;
-
-    if (memberRestrictions.length > 0) {
-      candidateCards = allCards.filter(c => memberRestrictions.includes(c.id));
+    // 3. Aplica restrições de membro (via DB) — restrictions=[] significa não configurado
+    if (memberRestrictions.length === 0) {
+      return new NextResponse(JSON.stringify({ error: `${member} não possui funções configuradas. Contate o administrador.` }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
     }
+
+    const candidateCards = allCards.filter(c => memberRestrictions.includes(c.id));
 
     // 4. Filtra o que está disponível fisicamente na data
     let physicallyAvailableCards = candidateCards.filter((c) => {

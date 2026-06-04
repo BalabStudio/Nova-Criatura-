@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { checkAdminPassword } from "@/lib/auth";
 import staticMembers from "@/data/members.json";
 
@@ -17,7 +17,6 @@ export async function GET() {
       members: staticMembers,
       membersWithRestrictions: staticMembers.map((name) => ({ name, restrictions: [] })),
       _fallback: true,
-      _supabase_error: error.message,
     });
   }
 
@@ -72,4 +71,92 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ member: data }, { status: 201 });
+}
+
+const VALID_CARD_IDS = ["oracao", "louvor", "quebra-gelo", "visao", "facilitacao", "oferta", "lanche"];
+
+export async function PATCH(req: NextRequest) {
+  let body: { name?: string; restrictions?: string[]; password?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
+  }
+
+  const { name, restrictions, password } = body;
+
+  if (!name || name.trim().length < 2) {
+    return NextResponse.json({ error: "Nome inválido." }, { status: 400 });
+  }
+
+  if (!Array.isArray(restrictions) || restrictions.some((r) => !VALID_CARD_IDS.includes(r))) {
+    return NextResponse.json(
+      { error: `Funções inválidas. Valores aceitos: ${VALID_CARD_IDS.join(", ")}.` },
+      { status: 400 }
+    );
+  }
+
+  if (!checkAdminPassword(password)) {
+    return NextResponse.json({ error: "Senha incorreta." }, { status: 401 });
+  }
+
+  const trimmedName = name.trim();
+
+  const { data: existing } = await supabase
+    .from("members")
+    .select("name")
+    .eq("name", trimmedName)
+    .eq("active", true)
+    .single();
+
+  if (!existing) {
+    return NextResponse.json({ error: `Membro "${trimmedName}" não encontrado.` }, { status: 404 });
+  }
+
+  const { data, error } = await supabase
+    .from("members")
+    .update({ restrictions })
+    .eq("name", trimmedName)
+    .eq("active", true)
+    .select("name, restrictions")
+    .single();
+
+  if (error) {
+    console.error("[api/members PATCH] Erro ao atualizar:", error.code, error.message);
+    return NextResponse.json({ error: "Falha ao atualizar permissões." }, { status: 500 });
+  }
+
+  return NextResponse.json({ member: data });
+}
+
+export async function DELETE(req: NextRequest) {
+  let body: { name?: string; password?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Corpo da requisição inválido." }, { status: 400 });
+  }
+
+  const { name, password } = body;
+
+  if (!name?.trim()) {
+    return NextResponse.json({ error: "Nome obrigatório." }, { status: 400 });
+  }
+
+  if (!checkAdminPassword(password)) {
+    return NextResponse.json({ error: "Senha incorreta." }, { status: 401 });
+  }
+
+  const { error } = await supabase
+    .from("members")
+    .delete()
+    .eq("name", name.trim())
+    .eq("active", true);
+
+  if (error) {
+    console.error("[api/members DELETE] Erro:", error.code, error.message);
+    return NextResponse.json({ error: "Falha ao remover membro." }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }
