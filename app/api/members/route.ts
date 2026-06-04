@@ -110,6 +110,7 @@ export async function PATCH(req: NextRequest) {
     .single();
 
   if (!existing) {
+    console.error(`[api/members PATCH] Membro "${trimmedName}" não encontrado na tabela members (active=true)`);
     return NextResponse.json({ error: `Membro "${trimmedName}" não encontrado.` }, { status: 404 });
   }
 
@@ -150,8 +151,7 @@ export async function DELETE(req: NextRequest) {
   const { error } = await supabase
     .from("members")
     .delete()
-    .eq("name", name.trim())
-    .eq("active", true);
+    .eq("name", name.trim());
 
   if (error) {
     console.error("[api/members DELETE] Erro:", error.code, error.message);

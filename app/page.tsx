@@ -222,13 +222,16 @@ export default function Page() {
         {isAdmin && (
           <>
             <label htmlFor="pwd" className="cardTitle" style={{ marginTop: 10 }}>Senha (admin)</label>
-            <input
-              id="pwd"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="cardSub"
-            />
+            <form onSubmit={(e) => e.preventDefault()} autoComplete="off">
+              <input
+                id="pwd"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="cardSub"
+                autoComplete="current-password"
+              />
+            </form>
           </>
         )}
 

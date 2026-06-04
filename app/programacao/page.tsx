@@ -539,14 +539,17 @@ function ProgramacaoContent() {
 
                     <div className="senha-admin-desktop" style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16 }}>
                       <label className="cardTitle" style={{ fontSize: '14px' }}>Senha Admin para Salvar</label>
-                      <input
-                        type="password"
-                        className="cardSub"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Senha do Richard"
-                        style={{ marginBottom: 16 }}
-                      />
+                      <form onSubmit={(e) => e.preventDefault()} autoComplete="off">
+                        <input
+                          type="password"
+                          className="cardSub"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Senha do Richard"
+                          autoComplete="current-password"
+                          style={{ marginBottom: 16 }}
+                        />
+                      </form>
                       <button className="btn" disabled={saving || !password} onClick={handleSave}>
                         {saving ? "Salvando..." : "Salvar Alterações"}
                       </button>
@@ -763,14 +766,17 @@ function ProgramacaoContent() {
           <div className="senha-admin-mobile card" style={{ backgroundColor: '#ffffff', border: '1px solid #e1eaef', width: '100%' }}>
             <div className="cardBody" style={{ backgroundColor: '#ffffff' }}>
               <label className="cardTitle" style={{ fontSize: '14px' }}>Senha Admin para Salvar</label>
-              <input
-                type="password"
-                className="cardSub"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Senha do Richard"
-                style={{ marginBottom: 16 }}
-              />
+              <form onSubmit={(e) => e.preventDefault()} autoComplete="off">
+                <input
+                  type="password"
+                  className="cardSub"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Senha do Richard"
+                  autoComplete="current-password"
+                  style={{ marginBottom: 16 }}
+                />
+              </form>
               <button className="btn" disabled={saving || !password} onClick={handleSave}>
                 {saving ? "Salvando..." : "Salvar Alterações"}
               </button>
