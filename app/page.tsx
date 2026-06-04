@@ -94,7 +94,11 @@ export default function Page() {
       const res = await fetch("/api/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member: selectedMember, date: selectedDate }),
+        body: JSON.stringify({
+          member: selectedMember,
+          date: selectedDate,
+          password: selectedMember === "Richard" ? password : undefined
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -107,7 +111,7 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, [selectedMember, selectedDate]);
+  }, [selectedMember, selectedDate, password]);
 
   const resetAssignmentsHandler = useCallback(async () => {
     if (!selectedDate) {
@@ -139,7 +143,7 @@ export default function Page() {
   const isAdmin = selectedMember === "Richard";
 
   const handleEditProgramacao = useCallback(async () => {
-    if (!password || !selectedDate) return;
+    if (!password) return;
     setLoading(true);
     setResetMsg(null);
     try {
@@ -153,7 +157,8 @@ export default function Page() {
         setResetMsg(data.error || "Senha incorreta.");
         return;
       }
-      router.push(`/programacao?edit=true&date=${selectedDate}`);
+      const dateQuery = selectedDate ? `&date=${selectedDate}` : "";
+      router.push(`/programacao?edit=true${dateQuery}`);
     } catch {
       setResetMsg("Erro ao verificar senha.");
     } finally {
@@ -163,20 +168,22 @@ export default function Page() {
 
   return (
     <main className="container">
-      <header className="header">
-        <div style={{ flex: 1 }}>
-          <h1 className="title">Paz Church Funções</h1>
-          <p className="subtitle">
-            Selecione o seu nome e a data da célula, depois clique em "Escolher" para receber sua função.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+      <header className={`header ${isAdmin ? 'admin-active' : ''}`}>
+        {!isAdmin && (
+          <div className="header-text" style={{ flex: 1 }}>
+            <h1 className="title">Paz Church Funções</h1>
+            <p className="subtitle">
+              Selecione o seu nome e a data da célula, depois clique em "Escolher" para receber sua função.
+            </p>
+          </div>
+        )}
+        <div className="header-buttons" style={{ display: 'flex', gap: '8px' }}>
           <Link href="/programacao" style={{ textDecoration: "none" }}>
             <button className="btn" style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600 }}>
               Ver Programação
             </button>
           </Link>
-          {isAdmin && selectedDate && (
+          {isAdmin && (
             <button
               className="btn"
               style={{ marginBottom: 0, width: "auto", padding: "10px 16px", fontSize: "12px", fontWeight: 600, backgroundColor: '#0070f3' }}
@@ -340,6 +347,43 @@ export default function Page() {
           <span>Card</span>
         </button>
       )}
+
+      <style>{`
+        .header.admin-active {
+          display: flex !important;
+          flex-direction: row !important;
+          justify-content: center !important;
+          align-items: center !important;
+          width: 100% !important;
+          margin-bottom: 20px !important;
+        }
+        .header.admin-active .header-buttons {
+          display: flex !important;
+          flex-direction: row !important;
+          justify-content: center !important;
+          align-items: center !important;
+          gap: 12px !important;
+        }
+        .header.admin-active .header-buttons a,
+        .header.admin-active .header-buttons button {
+          text-align: center !important;
+          justify-content: center !important;
+          margin: 0 !important;
+          width: auto !important;
+        }
+
+        @media (max-width: 640px) {
+          .header.admin-active .header-buttons {
+            width: 100% !important;
+            gap: 8px !important;
+          }
+          .header.admin-active .header-buttons a,
+          .header.admin-active .header-buttons button {
+            flex: 1 !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
     </main>
   );
 }

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCards, pickRandomCard } from "@/lib/cards";
 import { getAssignments, assign, isAssigned, getUsedCardIdsForDate, getLastAssignmentsForMember } from "@/lib/assignments";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { checkAdminPassword } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  let body: { member?: string; date?: string };
+  let body: { member?: string; date?: string; password?: string };
   try {
     body = await req.json();
   } catch {
@@ -14,13 +15,23 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { member, date } = body;
+  const { member, date, password } = body;
 
   if (!member || !date) {
     return new NextResponse(JSON.stringify({ error: "Campos 'member' e 'date' são obrigatórios." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // Se o participante for o administrador, valida a senha
+  if (member === "Richard") {
+    if (!checkAdminPassword(password)) {
+      return new NextResponse(JSON.stringify({ error: "Senha de administrador incorreta." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   }
 
   // Validação: Membro deve existir na tabela members do Supabase
